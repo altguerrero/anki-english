@@ -1,10 +1,40 @@
-<main class="sentence-card">
-  <div class="sentence">{{cloze:Text}}</div>
-  {{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}
-  <hr id="answer">
-  <div class="target">{{Target}}</div>
-  <div class="meaning">{{MeaningES}}</div>
-  {{#Pattern}}<p class="label">PATTERN</p><div>{{Pattern}}</div>{{/Pattern}}
-  {{#Example}}<p class="label">EXAMPLE</p><div>{{Example}}</div>{{/Example}}
-  <footer>{{Source}}{{#SourceURL}} · <a href="{{SourceURL}}">Source</a>{{/SourceURL}}</footer>
+<main class="sentence-card sentence-card--back" lang="es">
+  <header class="sc-header">
+    <span class="sc-eyebrow" lang="en">Sentence &amp; chunk</span>
+    <span class="sc-badge">Comprueba</span>
+  </header>
+  <section class="sc-answer" aria-label="Frase completa">
+    <p class="sc-label">Frase completa</p>
+    <div class="sc-sentence" lang="en">{{cloze:Text}}</div>
+    {{#Audio}}
+    <div class="sc-listen">
+      <div class="sc-audio" role="group" aria-label="Reproducir la frase">{{Audio}}</div>
+      <span class="sc-listen__text">Escucha y repite la frase.</span>
+    </div>
+    {{/Audio}}
+  </section>
+  <hr class="sc-divider">
+  <section class="sc-expression" aria-label="Expresión y significado">
+    <p class="sc-label">La expresión</p>
+    <h1 class="sc-target" lang="en">{{Target}}</h1>
+    <p class="sc-meaning">{{MeaningES}}</p>
+  </section>
+  {{#Pattern}}
+  <section class="sc-panel sc-panel--pattern" aria-label="Patrón">
+    <p class="sc-label">Patrón</p>
+    <p class="sc-pattern" lang="en">{{Pattern}}</p>
+  </section>
+  {{/Pattern}}
+  {{#Example}}
+  <section class="sc-panel sc-panel--example" aria-label="Otro contexto">
+    <p class="sc-label">Otro contexto</p>
+    <p class="sc-example" lang="en">{{Example}}</p>
+  </section>
+  {{/Example}}
+  {{#Source}}
+  <footer class="sc-source">
+    <span>Fuente · {{Source}}</span>
+    {{#SourceURL}}<a href="{{SourceURL}}" aria-label="Abrir fuente original">Ver fuente <span aria-hidden="true">↗</span></a>{{/SourceURL}}
+  </footer>
+  {{/Source}}
 </main>

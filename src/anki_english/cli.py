@@ -19,7 +19,9 @@ def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(prog="anki-en", description="Compile English CardSpec JSON into Anki cloze notes.")
     root.add_argument("--config", type=Path, help="Optional TOML config (default: built-in settings)")
     commands = root.add_subparsers(dest="command", required=True)
-    commands.add_parser("init", help="Create/verify deck and cloze note type")
+    init = commands.add_parser("init", help="Create/verify deck and cloze note type")
+    init.add_argument("--update-style", action="store_true",
+                      help="Back up and replace this note type's front/back/CSS, including existing cards")
     check = commands.add_parser("check", help="Offline validation, lint and preview")
     check.add_argument("file", type=Path)
     for name in ("add", "paste"):
@@ -49,8 +51,12 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load_config(args.config)
         if args.command == "init":
-            AnkiConnect(config.anki, api_key()).initialize()
+            backup = AnkiConnect(config.anki, api_key()).initialize(update_style=args.update_style)
             print(f"Ready: {config.anki.deck}\nNote type: {config.anki.model}")
+            if args.update_style:
+                print("Design applied to this note type. Note content and review history unchanged.")
+            if backup:
+                print(f"Previous design backup: {backup}")
             return 0
         # Validate the whole batch before any network request or write.
         batch = CardBatch.model_validate_json(read_input(args))

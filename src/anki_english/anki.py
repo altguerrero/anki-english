@@ -4,6 +4,7 @@ import base64
 from importlib.resources import files
 import json
 from pathlib import Path
+import tempfile
 from typing import Protocol
 from urllib.error import URLError
 from urllib.request import ProxyHandler, Request, build_opener
@@ -58,27 +59,71 @@ class AnkiConnect:
         if type(version) is not int or version < 6:
             raise AnkiError("AnkiConnect API v6 or newer is required")
 
-    def _verify_model(self) -> None:
+    def _read_model_templates(self) -> dict[str, dict[str, str]]:
         actual = self.call("modelFieldNames", modelName=self.config.model)
         if actual != FIELDS:
             raise AnkiError("Existing note type has different fields/order. Nothing was overwritten. "
                             "Choose a new model name or reconcile it manually.")
         actual_templates = self.call("modelTemplates", modelName=self.config.model)
-        expected = templates()
         if not isinstance(actual_templates, dict) or len(actual_templates) != 1:
             raise AnkiError("Expected exactly one sentence/chunk template")
+        template = next(iter(actual_templates.values()))
+        if not isinstance(template, dict) or any(
+            not isinstance(template.get(side), str) or "{{cloze:Text}}" not in template[side]
+            for side in ("Front", "Back")
+        ):
+            raise AnkiError("Expected the Text cloze filter on both sides; cannot update this model")
+        return actual_templates
+
+    def _verify_model(self) -> None:
+        actual_templates = self._read_model_templates()
+        expected = templates()
         template = next(iter(actual_templates.values()))
         if not isinstance(template, dict) or any(
             template.get(side, "").strip() != expected[file].strip()
             for side, file in (("Front", "front.html"), ("Back", "back.html"))
         ):
             raise AnkiError("Existing template differs from this version. Nothing was overwritten. "
-                            "Use a new model name or reconcile it manually.")
+                            "Run anki-en init --update-style to apply this version's design.")
 
-    def initialize(self) -> None:
+    def _update_style(self, backup_dir: Path | None = None) -> Path | None:
+        current = self._read_model_templates()
+        styling = self.call("modelStyling", modelName=self.config.model)
+        if not isinstance(styling, dict) or not isinstance(styling.get("css"), str):
+            raise AnkiError("modelStyling: malformed response; nothing was changed")
+        resource = templates()
+        name = next(iter(current))  # Preserve the existing template name and card ordinal.
+        replacement = {"Front": resource["front.html"], "Back": resource["back.html"]}
+        if current[name] == replacement and styling["css"] == resource["style.css"]:
+            return None
+
+        directory = backup_dir if backup_dir is not None else Path.home() / ".local/share/anki-english/backups"
+        directory.mkdir(parents=True, exist_ok=True)
+        # Save before either mutation. Unique file, restrictive default permissions.
+        with tempfile.NamedTemporaryFile(mode="w", encoding="utf-8", prefix="style-", suffix=".json",
+                                         dir=directory, delete=False) as stream:
+            backup = Path(stream.name)
+            json.dump({"model": self.config.model, "templates": current, "css": styling["css"]},
+                      stream, ensure_ascii=False, indent=2)
+        try:
+            self.call("updateModelTemplates", model={"name": self.config.model, "templates": {name: replacement}})
+            self.call("updateModelStyling", model={"name": self.config.model, "css": resource["style.css"]})
+            self._verify_model()
+            if self.call("modelStyling", modelName=self.config.model) != {"css": resource["style.css"]}:
+                raise AnkiError("CSS verification failed")
+        except AnkiError as error:
+            raise AnkiError(f"Style update incomplete: {error}. Previous design saved at {backup}. "
+                            "Rerun init --update-style to finish; note content was not changed.") from error
+        return backup
+
+    def initialize(self, update_style: bool = False, backup_dir: Path | None = None) -> Path | None:
         self._check_version()
+        backup = None
         if self.config.model in self.call("modelNames"):
-            self._verify_model()  # Verify compatibility before creating any deck.
+            if update_style:
+                backup = self._update_style(backup_dir)
+            else:
+                self._verify_model()  # Verify compatibility before creating any deck.
         else:
             resource = templates()
             self.call("createModel", modelName=self.config.model, inOrderFields=FIELDS,
@@ -87,6 +132,7 @@ class AnkiConnect:
                                       "Back": resource["back.html"]}])
             self._verify_model()
         self.call("createDeck", deck=self.config.deck)
+        return backup
 
     def verify(self) -> None:
         self._check_version()

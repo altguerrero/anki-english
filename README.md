@@ -2,19 +2,49 @@
 
 Compilador local de tarjetas de inglés: **CardSpec JSON → validación → cloze → audio opcional → Anki**.
 
-Primera versión implementada. Incluye CLI, contrato Pydantic/JSON Schema, plantillas,
-deduplicación por UID y adaptador AnkiConnect. Kokoro está implementado como extra opcional;
-su síntesis real y el renderizado/importación en Anki Desktop todavía requieren validación
-en el equipo del usuario. Las pruebas usan un servidor HTTP de AnkiConnect simulado.
+Incluye CLI, contrato Pydantic/JSON Schema, deduplicación por UID, AnkiConnect y Kokoro
+como extra opcional. El usuario confirmó la importación y reproducción de una tarjeta con
+audio en su Mac con Python 3.12.15 el 12 de octubre de 2026. Las pruebas automatizadas usan
+un servidor HTTP simulado; la nueva presentación Aura requiere revisión final en Anki.
+
+## Diseño Aura editorial
+
+Frases en Georgia, fondo crema, acento azul para recuperación y verde suave para el ejemplo.
+El reverso separa frase, audio, expresión, significado, patrón y otro contexto.
+Los bloques opcionales se ocultan si el campo está vacío. Audio solo en el reverso.
+Incluye modo oscuro (`nightMode`/`night_mode`), tamaños móviles, controles de 44 px y foco
+visible. No usa JavaScript, fuentes remotas ni imágenes externas.
+
+### Aplicar el diseño a las tarjetas existentes
+
+Con Anki abierto, desde tu clon y con el entorno activado:
+
+```bash
+git pull --ff-only
+python -m pip install -e .
+anki-en init --update-style
+```
+
+El flag autoriza reemplazar el anverso, reverso y CSS del tipo de nota configurado. Se aplica
+a todas sus tarjetas, conservando campos, audio, IDs, nombre de plantilla y repasos.
+Antes de cambiar nada, guarda una copia JSON del diseño previo en
+`~/.local/share/anki-english/backups/` y muestra su ruta. Si hay un fallo entre las dos
+operaciones de AnkiConnect, repite el comando para completar la actualización.
+Ejecutar `init` sin el flag sigue sin sobrescribir un diseño diferente.
+Para volver manualmente al diseño previo, copia `Front`, `Back` y `css` del JSON de respaldo
+en los apartados correspondientes del editor de tarjetas de Anki.
 
 ## Instalación
 
-Requiere Python 3.11+ y Anki Desktop con [AnkiConnect](https://ankiweb.net/shared/info/2055492159).
+Recomendado: **Python 3.12**, especialmente para audio. El núcleo acepta 3.11+, pero Kokoro
+no admite Python 3.14 en la versión utilizada. Requiere Anki Desktop con
+[AnkiConnect](https://ankiweb.net/shared/info/2055492159).
 Anki debe permanecer abierto al ejecutar `init` o publicar. `check` y `--dry-run` funcionan sin Anki.
 
 ```bash
 cd anki-english
-python3 -m venv .venv
+brew install python@3.12
+python3.12 -m venv .venv
 source .venv/bin/activate
 python -m pip install -e .
 anki-en check examples/cards.json
@@ -37,7 +67,7 @@ de un fallo de TTS. El modo por defecto intenta generar audio con Kokoro.
 brew install ffmpeg espeak-ng
 python -m pip install -e '.[audio]'
 anki-en add examples/cards.json
-# O, después de copiar un lote nuevo:
+# Si ya importaste los ejemplos sin audio, usa un lote NUEVO:
 anki-en paste
 ```
 
@@ -58,6 +88,7 @@ el mismo UID se omite. La actualización de notas existentes es trabajo futuro.
 | Comando | Comportamiento |
 | --- | --- |
 | `anki-en init` | Crea/verifica mazo y modelo Cloze; no reemplaza un modelo incompatible. |
+| `anki-en init --update-style` | Respalda y actualiza anverso/reverso/CSS de las tarjetas existentes. |
 | `anki-en check cards.json` | Valida, avisa y previsualiza sin red ni TTS. |
 | `anki-en add cards.json --dry-run` | Misma comprobación offline. |
 | `anki-en add cards.json` | Comprueba Anki/UID, pide confirmación, genera audio y publica. |
@@ -122,7 +153,8 @@ python -m unittest discover -s tests -v
 
 Las pruebas cubren contrato, cloze, XSS/markup, UID/ocurrencias, inicialización idempotente,
 rechazo de modelos incompatibles, HTTP/API key, CLI offline, confirmación, duplicados,
-publicación parcial y reintentos. No sustituyen una prueba real de Anki Desktop/AnkiMobile.
+publicación parcial y reintentos, y actualización de diseño con respaldo, recuperación tras
+fallo y rechazo de modelos incompatibles. No sustituyen una prueba real de Anki Desktop/AnkiMobile.
 
 Estructura:
 
@@ -134,24 +166,11 @@ Estructura:
 - `cli.py`: entrada JSON/portapapeles, preview y confirmación.
 - `templates/`: front/back/CSS empaquetados con la instalación.
 
-Próximo hito: importar una tarjeta nueva con audio en el Mac, revisar ambas caras y reproducir
-el sonido en Desktop y móvil. Después: avisos de similitud y actualización explícita de notas.
+Próximo hito: validar el nuevo diseño Aura y el audio en AnkiMobile/AnkiDroid.
+Después: avisos de similitud y actualización explícita del contenido de notas.
 MCP, API de IA, GUI y otros motores de voz quedan fuera de esta primera entrega.
 
-## Subir a GitHub
-
-Este directorio ya es un repositorio Git en `main`. Cuando exista el remoto vacío:
-
-```bash
-git remote add origin <URL-DEL-REPOSITORIO>
-git push -u origin main
-```
-
-Si tienes GitHub CLI autenticado, puedes crear el repo privado y subirlo en un paso:
-
-```bash
-gh repo create anki-english --private --source=. --remote=origin --push
-```
+Repositorio: [altguerrero/anki-english](https://github.com/altguerrero/anki-english).
 
 Referencias técnicas: [AnkiConnect API](https://git.sr.ht/~foosoft/anki-connect),
 [manual de cloze de Anki](https://docs.ankiweb.net/templates/cloze.html),

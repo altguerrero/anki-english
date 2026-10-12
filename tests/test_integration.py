@@ -27,6 +27,7 @@ class State:
         self.notes = {}
         self.calls = []
         self.fail_add = None
+        self.fail_style = False
         self.mode = "normal"
 
     def invoke(self, action, params):
@@ -39,6 +40,15 @@ class State:
         if action == "modelFieldNames": return self.model["inOrderFields"]
         if action == "modelTemplates":
             return {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in self.model["cardTemplates"]}
+        if action == "modelStyling": return {"css": self.model["css"]}
+        if action == "updateModelTemplates":
+            for template in self.model["cardTemplates"]:
+                template.update(params["model"]["templates"].get(template["Name"], {}))
+            return None
+        if action == "updateModelStyling":
+            if self.fail_style: raise ValueError("simulated styling failure")
+            self.model["css"] = params["model"]["css"]
+            return None
         if action == "createDeck":
             if params["deck"] not in self.decks: self.decks.append(params["deck"])
             return 1
@@ -186,6 +196,62 @@ class IntegrationTests(unittest.TestCase):
     def test_malformed_response_rejected(self):
         self.state.mode = "malformed"
         with self.assertRaises(AnkiError): self.gateway.call("version")
+
+    def test_style_update_backs_up_and_preserves_notes_and_template_name(self):
+        self.gateway.initialize()
+        card = compile_card(SentenceChunk.model_validate(example()))
+        self.gateway.add(card, None)
+        before = json.dumps(self.state.notes, sort_keys=True)
+        self.state.model["cardTemplates"][0].update(Name="My existing card", Front="<p>{{cloze:Text}}</p>")
+        self.state.model["css"] = "old CSS"
+        backup = self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertIsNotNone(backup)
+        saved = json.loads(backup.read_text())
+        self.assertEqual(saved["css"], "old CSS")
+        self.assertEqual(saved["templates"]["My existing card"]["Front"], "<p>{{cloze:Text}}</p>")
+        self.assertEqual(self.state.model["cardTemplates"][0]["Name"], "My existing card")
+        self.assertEqual(json.dumps(self.state.notes, sort_keys=True), before)
+        self.gateway.verify()
+        self.state.calls.clear()
+        self.assertIsNone(self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name)))
+        self.assertFalse(any(c["action"].startswith("update") for c in self.state.calls))
+
+    def test_style_update_rejects_incompatible_fields_before_mutation(self):
+        self.gateway.initialize()
+        self.state.model["inOrderFields"] = ["Front", "Back"]
+        self.state.calls.clear()
+        with self.assertRaises(AnkiError):
+            self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertFalse(any(c["action"].startswith("update") for c in self.state.calls))
+
+    def test_style_failure_keeps_original_backup_and_retry_finishes(self):
+        self.gateway.initialize()
+        self.state.model["css"] = "original CSS"
+        self.state.model["cardTemplates"][0]["Front"] = "<p>{{cloze:Text}}</p>"
+        self.state.fail_style = True
+        with self.assertRaisesRegex(AnkiError, "Previous design saved"):
+            self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        backups = list(Path(self.temp.name).glob("style-*.json"))
+        self.assertEqual(len(backups), 1)
+        self.assertEqual(json.loads(backups[0].read_text())["css"], "original CSS")
+        self.state.fail_style = False
+        self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.gateway.verify()
+
+    def test_style_backup_failure_prevents_writes(self):
+        self.gateway.initialize()
+        self.state.model["css"] = "original CSS"
+        self.state.calls.clear()
+        with patch("anki_english.anki.tempfile.NamedTemporaryFile", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError):
+                self.gateway.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertFalse(any(c["action"].startswith("update") for c in self.state.calls))
+
+    def test_init_cli_passes_explicit_update_style_flag(self):
+        with patch("anki_english.cli.AnkiConnect") as client:
+            client.return_value.initialize.return_value = None
+            self.assertEqual(self.cli("init", "--update-style")[0], 0)
+            client.return_value.initialize.assert_called_once_with(update_style=True)
 
 
 if __name__ == "__main__":
