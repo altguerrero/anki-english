@@ -85,8 +85,8 @@
 .sentence-card--front { display: flex; flex-direction: column; min-height: 420px; }
 .sc-prompt { flex: 1; padding-bottom: 40px; }
 .sc-cue { margin-top: 24px; padding-left: 14px; border-left: 2px solid var(--color-border); }
-.sc-cue .sc-label { margin-bottom: 6px; }
-.sc-cue__text { margin: 0; color: var(--color-text-secondary); font-size: 15px; line-height: 1.55; }
+.sc-cue summary { min-height: 44px; padding: 12px 0; color: var(--color-accent); font-size: 13px; cursor: pointer; }
+.sc-cue__text { margin: 0; padding-bottom: 8px; color: var(--color-text-secondary); font-size: 15px; line-height: 1.55; }
 .sc-instruction { display: flex; align-items: center; gap: 14px; padding-top: 20px; border-top: 1px solid var(--color-border); }
 .sc-instruction__icon { display: flex; align-items: center; justify-content: center; flex: 0 0 44px; width: 44px; height: 44px; color: var(--color-accent); background: var(--color-accent-soft); border: 1px solid var(--color-border); border-radius: var(--radius-md); }
 .sc-instruction__icon svg { width: 22px; height: 22px; }

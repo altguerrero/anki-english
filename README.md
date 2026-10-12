@@ -10,8 +10,10 @@ un servidor HTTP simulado; la nueva presentación Aura requiere revisión final 
 ## Diseño Aura editorial
 
 Frases en Georgia, fondo crema, acento azul para recuperación y verde suave para el ejemplo.
-El anverso muestra la frase con hueco, una pista de significado en español y la instrucción
-de completar y decir la frase en voz alta. La pista reutiliza `MeaningES`: funciona en las
+El anverso muestra la frase con hueco, una pista de significado en español desplegable y la
+instrucción de completar y decir la frase en voz alta. La pista empieza cerrada: pulsa
+«Ver pista de significado» para abrirla o vuelve a pulsar para cerrarla; también funciona
+con teclado. Reutiliza `MeaningES`: funciona en las
 notas existentes sin migrar campos ni reimportar contenido.
 El reverso separa frase, audio, expresión, significado, cómo usarlo y otro contexto.
 Una guía de calificación desplegable queda disponible sin ocupar el repaso habitual.
@@ -23,7 +25,8 @@ visible. No usa JavaScript, fuentes remotas ni imágenes externas.
 
 1. Aprende primero qué significa la expresión y escucha su pronunciación. La tarjeta sirve
    para practicar algo que ya has entendido.
-2. Lee la frase y la pista; intenta recuperar la expresión y di la frase completa antes de
+2. Lee la frase e intenta recuperar la expresión; abre la pista si necesitas precisar el
+   significado. Di la frase completa antes de
    revelar. Si no puedes hablar en ese momento, responde mentalmente. No te quedes bloqueado:
    el manual de Anki sugiere revelar tras unos 10 segundos sin respuesta.
 3. Revela, compara y escucha el audio si está disponible. Repite para practicar pronunciación;
@@ -34,7 +37,7 @@ visible. No usa JavaScript, fuentes remotas ni imágenes externas.
 Para redactar un lote, usa `examples/cards.json` como contrato y sigue estos criterios:
 
 - Una expresión útil por tarjeta; el resto de la frase debe ser comprensible para tu nivel.
-- `meaning_es`: una glosa breve y contextual en español. Se ve **antes** de responder;
+- `meaning_es`: una glosa breve y contextual en español. Puede desplegarse **antes** de responder;
   no incluyas la expresión inglesa ni listas de traducciones ajenas a ese contexto.
 - Oculta la expresión completa que quieres practicar y evita repetirla en la parte visible.
 - `pattern`: una regla breve y aplicable; explica en español y conserva las formas inglesas.

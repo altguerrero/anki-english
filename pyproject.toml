@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "anki-english"
-version = "0.3.0"
+version = "0.3.1"
 description = "Compile English CardSpec batches into Anki cloze notes"
 readme = "README.md"
 requires-python = ">=3.11"
