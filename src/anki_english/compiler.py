@@ -38,6 +38,11 @@ def lint(card: SentenceChunk) -> tuple[str, ...]:
         warnings.append("The entire sentence is hidden; there is no remaining context.")
     if len(card.answer.split()) == 1 and len(card.target.split()) > 1:
         warnings.append("Answer is one word but Target is a phrase; check the learning target.")
+    if any(answer_spans(normalized(card.meaning_es), normalized(value))
+           for value in (card.answer, card.target)):
+        warnings.append("MeaningES may reveal the English answer on the front; use a Spanish-only meaning cue.")
+    if len(answer_spans(normalized(card.sentence), normalized(card.answer))) > 1:
+        warnings.append("The answer also appears outside the selected blank; rephrase to avoid revealing it.")
     return tuple(warnings)
 
 

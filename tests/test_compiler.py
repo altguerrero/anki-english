@@ -76,6 +76,23 @@ class CompilerTests(unittest.TestCase):
             with self.subTest(batch_size=len(batch["cards"])), self.assertRaises(ValidationError):
                 CardBatch.model_validate(batch)
 
+    def test_front_cue_warns_on_answer_or_canonical_target_leaks(self):
+        for meaning in ("LOOKING FORWARD TO: tener ganas", "Usa look forward to"):
+            with self.subTest(meaning=meaning):
+                card = compile_card(SentenceChunk.model_validate(example(meaning_es=meaning)))
+                self.assertTrue(any("MeaningES may reveal" in warning for warning in card.warnings))
+        safe = compile_card(SentenceChunk.model_validate(example(
+            sentence="I need a pan.", answer="pan", target="pan", meaning_es="sartén para panqueques")))
+        self.assertFalse(any("MeaningES may reveal" in warning for warning in safe.warnings))
+
+    def test_visible_repeated_answer_warns_without_changing_identity(self):
+        spec = SentenceChunk.model_validate(example(
+            sentence="I know that you KNOW.", answer="know", target="know", meaning_es="saber"))
+        card = compile_card(spec)
+        self.assertTrue(any("outside the selected blank" in warning for warning in card.warnings))
+        self.assertEqual(card.fields["Text"], "I {{c1::know}} that you KNOW.")
+        self.assertEqual(card.uid, uid_for(spec))
+
     def test_exported_schema_matches_runtime_contract(self):
         self.assertEqual(schema(), json.loads((ROOT / "schemas/card-spec-v1.schema.json").read_text()))
 

@@ -10,10 +10,47 @@ un servidor HTTP simulado; la nueva presentación Aura requiere revisión final 
 ## Diseño Aura editorial
 
 Frases en Georgia, fondo crema, acento azul para recuperación y verde suave para el ejemplo.
-El reverso separa frase, audio, expresión, significado, patrón y otro contexto.
+El anverso muestra la frase con hueco, una pista de significado en español y la instrucción
+de completar y decir la frase en voz alta. La pista reutiliza `MeaningES`: funciona en las
+notas existentes sin migrar campos ni reimportar contenido.
+El reverso separa frase, audio, expresión, significado, cómo usarlo y otro contexto.
+Una guía de calificación desplegable queda disponible sin ocupar el repaso habitual.
 Los bloques opcionales se ocultan si el campo está vacío. Audio solo en el reverso.
 Incluye modo oscuro (`nightMode`/`night_mode`), tamaños móviles, controles de 44 px y foco
 visible. No usa JavaScript, fuentes remotas ni imágenes externas.
+
+### Cómo estudiar y redactar las tarjetas
+
+1. Aprende primero qué significa la expresión y escucha su pronunciación. La tarjeta sirve
+   para practicar algo que ya has entendido.
+2. Lee la frase y la pista; intenta recuperar la expresión y di la frase completa antes de
+   revelar. Si no puedes hablar en ese momento, responde mentalmente. No te quedes bloqueado:
+   el manual de Anki sugiere revelar tras unos 10 segundos sin respuesta.
+3. Revela, compara y escucha el audio si está disponible. Repite para practicar pronunciación;
+   califica el recuerdo de la expresión, no tu acento ni si te resultó familiar al verla.
+4. Usa **Otra vez** si fallaste; **Difícil** si acertaste con mucho esfuerzo; **Bien** si
+   acertaste con esfuerzo normal; **Fácil** si acertaste sin esfuerzo. No uses Difícil para un olvido.
+
+Para redactar un lote, usa `examples/cards.json` como contrato y sigue estos criterios:
+
+- Una expresión útil por tarjeta; el resto de la frase debe ser comprensible para tu nivel.
+- `meaning_es`: una glosa breve y contextual en español. Se ve **antes** de responder;
+  no incluyas la expresión inglesa ni listas de traducciones ajenas a ese contexto.
+- Oculta la expresión completa que quieres practicar y evita repetirla en la parte visible.
+- `pattern`: una regla breve y aplicable; explica en español y conserva las formas inglesas.
+  `example`: otra frase natural y sencilla que muestre un uso diferente. Usa `null` si no aportan.
+- Si varias respuestas encajan, precisa la pista o reformula la frase. Una alternativa válida
+  no demuestra un fallo de memoria. Edita la nota en Anki si hace falta: reimportarla la omite.
+- Al terminar, elige unas pocas expresiones e intenta usarlas en otra situación; comprueba
+  tus frases con un profesor o compañero competente. Es práctica adicional, no una tarea
+  obligatoria en cada repaso ni parte de su calificación.
+
+El respaldo empírico corresponde a recuperar y comprobar vocabulario, no a una superioridad
+demostrada de esta plantilla. La pista y la organización visual son decisiones de diseño.
+Las tarjetas complementan la escucha y la conversación; no garantizan por sí solas fluidez.
+Referencias: [Karpicke y Roediger, 2008](https://doi.org/10.1126/science.1152408),
+[Kang, Gollan y Pashler, 2013](https://pubmed.ncbi.nlm.nih.gov/23681928/),
+[calificación en Anki](https://docs.ankiweb.net/studying.html).
 
 ### Aplicar el diseño a las tarjetas existentes
 
@@ -126,6 +163,8 @@ V1 solo permite un endpoint loopback (`127.0.0.1`, `localhost` o `::1`), sin pro
   minúsculas ASCII, números, guiones, guiones bajos y una jerarquía `::`.
 - Los avisos pedagógicos son **heurísticas**, no una validación científica ni una garantía
   de que una frase sea correcta, adecuada para el nivel o tenga un único objetivo conceptual.
+  Incluyen coincidencias de la respuesta/expresión en la pista y respuestas repetidas en la
+  frase que pueden revelar la solución. Son avisos, no bloqueos: revisa los posibles falsos positivos.
 - `schemas/card-spec-v1.schema.json` es el contrato exportado para autores/herramientas.
   Se genera desde Pydantic para evitar dos definiciones mantenidas a mano. Las pruebas detectan
   divergencias. Las relaciones entre campos, el markup y las reglas semánticas se validan

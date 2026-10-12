@@ -9,7 +9,7 @@
     {{#Audio}}
     <div class="sc-listen">
       <div class="sc-audio" role="group" aria-label="Reproducir la frase">{{Audio}}</div>
-      <span class="sc-listen__text">Escucha y repite la frase.</span>
+      <span class="sc-listen__text">Escucha, compara con tu intento y repite.</span>
     </div>
     {{/Audio}}
   </section>
@@ -20,9 +20,9 @@
     <p class="sc-meaning">{{MeaningES}}</p>
   </section>
   {{#Pattern}}
-  <section class="sc-panel sc-panel--pattern" aria-label="Patrón">
-    <p class="sc-label">Patrón</p>
-    <p class="sc-pattern" lang="en">{{Pattern}}</p>
+  <section class="sc-panel sc-panel--pattern" aria-label="Cómo usarlo">
+    <p class="sc-label">Cómo usarlo</p>
+    <p class="sc-pattern">{{Pattern}}</p>
   </section>
   {{/Pattern}}
   {{#Example}}
@@ -31,6 +31,17 @@
     <p class="sc-example" lang="en">{{Example}}</p>
   </section>
   {{/Example}}
+  <details class="sc-review-guide">
+    <summary>¿Cómo califico mi respuesta?</summary>
+    <p>Evalúa si recordaste la expresión que faltaba antes de revelar.</p>
+    <dl>
+      <div><dt>Otra vez</dt><dd>No la recordé o me equivoqué.</dd></div>
+      <div><dt>Difícil</dt><dd>La recordé bien, pero con mucho esfuerzo.</dd></div>
+      <div><dt>Bien</dt><dd>La recordé con un esfuerzo normal.</dd></div>
+      <div><dt>Fácil</dt><dd>La recordé sin esfuerzo.</dd></div>
+    </dl>
+    <p>Si otra expresión también encaja, revisa la pista: no conviertas una ambigüedad en un fallo de memoria.</p>
+  </details>
   {{#Source}}
   <footer class="sc-source">
     <span>Fuente · {{Source}}</span>
