@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "anki-english"
+version = "0.1.0"
+description = "Compile English CardSpec batches into Anki cloze notes"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["pydantic>=2.10,<3"]
+
+[project.optional-dependencies]
+audio = ["kokoro>=0.9.4,<1", "soundfile>=0.13,<1"]
+
+[project.scripts]
+anki-en = "anki_english.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+anki_english = ["templates/*.html", "templates/*.css"]

@@ -1,0 +1,199 @@
+{
+  "$defs": {
+    "SentenceChunk": {
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "const": "sentence_chunk",
+          "title": "Kind",
+          "type": "string"
+        },
+        "sentence": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Sentence",
+          "type": "string"
+        },
+        "answer": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "answer_occurrence": {
+          "minimum": 1,
+          "title": "Answer Occurrence",
+          "type": "integer"
+        },
+        "target": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        },
+        "meaning_es": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Meaning Es",
+          "type": "string"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "maxLength": 140,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pattern"
+        },
+        "example": {
+          "anyOf": [
+            {
+              "maxLength": 250,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Example"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "islands": {
+          "items": {
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Islands",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "tags": {
+          "items": {
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:[-_][a-z0-9]+)*(?:::[a-z0-9]+(?:[-_][a-z0-9]+)*)?$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "tts_text": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tts Text"
+        }
+      },
+      "required": [
+        "kind",
+        "sentence",
+        "answer",
+        "answer_occurrence",
+        "target",
+        "meaning_es",
+        "pattern",
+        "example",
+        "source",
+        "islands",
+        "tags",
+        "tts_text"
+      ],
+      "title": "SentenceChunk",
+      "type": "object"
+    },
+    "Source": {
+      "additionalProperties": false,
+      "properties": {
+        "type": {
+          "enum": [
+            "manual",
+            "lingq",
+            "platzi",
+            "chatgpt",
+            "conversation",
+            "book",
+            "video",
+            "other"
+          ],
+          "title": "Type",
+          "type": "string"
+        },
+        "label": {
+          "anyOf": [
+            {
+              "maxLength": 200,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Label"
+        },
+        "url": {
+          "anyOf": [
+            {
+              "maxLength": 2048,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Url"
+        }
+      },
+      "required": [
+        "type",
+        "label",
+        "url"
+      ],
+      "title": "Source",
+      "type": "object"
+    }
+  },
+  "additionalProperties": false,
+  "properties": {
+    "schema_version": {
+      "const": "1.0",
+      "title": "Schema Version",
+      "type": "string"
+    },
+    "cards": {
+      "items": {
+        "$ref": "#/$defs/SentenceChunk"
+      },
+      "maxItems": 50,
+      "minItems": 1,
+      "title": "Cards",
+      "type": "array"
+    }
+  },
+  "required": [
+    "schema_version",
+    "cards"
+  ],
+  "title": "CardBatch",
+  "type": "object",
+  "$schema": "https://json-schema.org/draft/2020-12/schema"
+}

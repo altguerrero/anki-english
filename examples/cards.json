@@ -1,0 +1,33 @@
+{
+  "schema_version": "1.0",
+  "cards": [
+    {
+      "kind": "sentence_chunk",
+      "sentence": "I'm really looking forward to seeing you again.",
+      "answer": "looking forward to",
+      "answer_occurrence": 1,
+      "target": "look forward to",
+      "meaning_es": "tener ganas de / esperar algo con ilusión",
+      "pattern": "look forward to + noun / -ing",
+      "example": "I'm looking forward to the weekend.",
+      "source": {"type": "manual", "label": "Example card", "url": null},
+      "islands": ["social"],
+      "tags": ["chunk"],
+      "tts_text": null
+    },
+    {
+      "kind": "sentence_chunk",
+      "sentence": "I haven't worked with React in a while.",
+      "answer": "in a while",
+      "answer_occurrence": 1,
+      "target": "in a while",
+      "meaning_es": "desde hace un tiempo",
+      "pattern": "haven't / hasn't + past participle + in a while",
+      "example": "She hasn't visited us in a while.",
+      "source": {"type": "manual", "label": "Example card", "url": null},
+      "islands": ["work"],
+      "tags": ["chunk"],
+      "tts_text": null
+    }
+  ]
+}

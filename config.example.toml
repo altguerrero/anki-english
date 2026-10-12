@@ -1,0 +1,12 @@
+[anki]
+endpoint = "http://127.0.0.1:8765"
+deck = "English::02 Sentences & Chunks"
+model = "English – Sentence & Chunk"
+timeout = 15.0
+
+[tts]
+provider = "kokoro"
+voice = "af_heart"
+lang_code = "a"
+speed = 1.0
+cache_dir = "~/.cache/anki-english/audio"

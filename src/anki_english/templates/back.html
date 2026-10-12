@@ -1,0 +1,10 @@
+<main class="sentence-card">
+  <div class="sentence">{{cloze:Text}}</div>
+  {{#Audio}}<div class="audio">{{Audio}}</div>{{/Audio}}
+  <hr id="answer">
+  <div class="target">{{Target}}</div>
+  <div class="meaning">{{MeaningES}}</div>
+  {{#Pattern}}<p class="label">PATTERN</p><div>{{Pattern}}</div>{{/Pattern}}
+  {{#Example}}<p class="label">EXAMPLE</p><div>{{Example}}</div>{{/Example}}
+  <footer>{{Source}}{{#SourceURL}} · <a href="{{SourceURL}}">Source</a>{{/SourceURL}}</footer>
+</main>
