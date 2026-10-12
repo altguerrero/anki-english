@@ -1,51 +1,51 @@
-<main class="sentence-card sentence-card--back" lang="es">
+<main class="sentence-card sentence-card--back" lang="en">
   <header class="sc-header">
     <span class="sc-eyebrow" lang="en">Sentence &amp; chunk</span>
-    <span class="sc-badge">Comprueba</span>
+    <span class="sc-badge">Check</span>
   </header>
-  <section class="sc-answer" aria-label="Frase completa">
-    <p class="sc-label">Frase completa</p>
+  <section class="sc-answer" aria-label="Full sentence">
+    <p class="sc-label">Full sentence</p>
     <div class="sc-sentence" lang="en">{{cloze:Text}}</div>
     {{#Audio}}
     <div class="sc-listen">
-      <div class="sc-audio" role="group" aria-label="Reproducir la frase">{{Audio}}</div>
-      <span class="sc-listen__text">Escucha, compara con tu intento y repite.</span>
+      <div class="sc-audio" role="group" aria-label="Play the sentence">{{Audio}}</div>
+      <span class="sc-listen__text">Listen, compare with your answer, and repeat.</span>
     </div>
     {{/Audio}}
   </section>
   <hr class="sc-divider">
-  <section class="sc-expression" aria-label="Expresión y significado">
-    <p class="sc-label">La expresión</p>
+  <section class="sc-expression" aria-label="Expression and meaning">
+    <p class="sc-label">The expression</p>
     <h1 class="sc-target" lang="en">{{Target}}</h1>
-    <p class="sc-meaning">{{MeaningES}}</p>
+    <p class="sc-meaning" lang="es">{{MeaningES}}</p>
   </section>
   {{#Pattern}}
-  <section class="sc-panel sc-panel--pattern" aria-label="Cómo usarlo">
-    <p class="sc-label">Cómo usarlo</p>
-    <p class="sc-pattern">{{Pattern}}</p>
+  <section class="sc-panel sc-panel--pattern" aria-label="How to use it">
+    <p class="sc-label">How to use it</p>
+    <p class="sc-pattern" lang="es">{{Pattern}}</p>
   </section>
   {{/Pattern}}
   {{#Example}}
-  <section class="sc-panel sc-panel--example" aria-label="Otro contexto">
-    <p class="sc-label">Otro contexto</p>
+  <section class="sc-panel sc-panel--example" aria-label="Another example">
+    <p class="sc-label">Another example</p>
     <p class="sc-example" lang="en">{{Example}}</p>
   </section>
   {{/Example}}
   <details class="sc-review-guide">
-    <summary>¿Cómo califico mi respuesta?</summary>
-    <p>Evalúa si recordaste la expresión que faltaba antes de revelar.</p>
+    <summary>How should I rate my answer?</summary>
+    <p>Did you remember the missing words before showing the answer?</p>
     <dl>
-      <div><dt>Otra vez</dt><dd>No la recordé o me equivoqué.</dd></div>
-      <div><dt>Difícil</dt><dd>La recordé bien, pero con mucho esfuerzo.</dd></div>
-      <div><dt>Bien</dt><dd>La recordé con un esfuerzo normal.</dd></div>
-      <div><dt>Fácil</dt><dd>La recordé sin esfuerzo.</dd></div>
+      <div><dt>Again</dt><dd>I forgot or gave the wrong answer.</dd></div>
+      <div><dt>Hard</dt><dd>I got it right, but it was hard to remember.</dd></div>
+      <div><dt>Good</dt><dd>I got it right with some effort.</dd></div>
+      <div><dt>Easy</dt><dd>I remembered it without effort.</dd></div>
     </dl>
-    <p>Si otra expresión también encaja, revisa la pista: no conviertas una ambigüedad en un fallo de memoria.</p>
+    <p>If another expression also fits, check the hint. A different correct answer does not mean you forgot.</p>
   </details>
   {{#Source}}
   <footer class="sc-source">
-    <span>Fuente · {{Source}}</span>
-    {{#SourceURL}}<a href="{{SourceURL}}" aria-label="Abrir fuente original">Ver fuente <span aria-hidden="true">↗</span></a>{{/SourceURL}}
+    <span>Source · {{Source}}</span>
+    {{#SourceURL}}<a href="{{SourceURL}}" aria-label="Open original source">View source <span aria-hidden="true">↗</span></a>{{/SourceURL}}
   </footer>
   {{/Source}}
 </main>

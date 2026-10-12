@@ -12,11 +12,14 @@ un servidor HTTP simulado; la nueva presentación Aura requiere revisión final 
 Frases en Georgia, fondo crema, acento azul para recuperación y verde suave para el ejemplo.
 El anverso muestra la frase con hueco, una pista de significado en español desplegable y la
 instrucción de completar y decir la frase en voz alta. La pista empieza cerrada: pulsa
-«Ver pista de significado» para abrirla o vuelve a pulsar para cerrarla; también funciona
+«Show meaning hint» para abrirla o vuelve a pulsar para cerrarla; también funciona
 con teclado. Reutiliza `MeaningES`: funciona en las
 notas existentes sin migrar campos ni reimportar contenido.
 El reverso separa frase, audio, expresión, significado, cómo usarlo y otro contexto.
-Una guía de calificación desplegable queda disponible sin ocupar el repaso habitual.
+Las etiquetas, instrucciones y la guía de calificación están en inglés sencillo; la pista,
+el significado y las explicaciones de uso conservan su contenido en español. Los botones
+nativos de Anki siguen el idioma de la aplicación. Una guía de calificación desplegable
+queda disponible sin ocupar el repaso habitual.
 Los bloques opcionales se ocultan si el campo está vacío. Audio solo en el reverso.
 Incluye modo oscuro (`nightMode`/`night_mode`), tamaños móviles, controles de 44 px y foco
 visible. No usa JavaScript, fuentes remotas ni imágenes externas.
