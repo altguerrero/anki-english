@@ -325,3 +325,27 @@ Repositorio: [altguerrero/anki-english](https://github.com/altguerrero/anki-engl
 Referencias técnicas: [AnkiConnect API](https://git.sr.ht/~foosoft/anki-connect),
 [manual de cloze de Anki](https://docs.ankiweb.net/templates/cloze.html),
 [Kokoro](https://github.com/hexgrad/kokoro).
+
+## Plugin de ChatGPT: Anki English Coach
+
+Abre [Anki English Coach](https://chatgpt.com/plugins/plugins_6ace6d382bd88191be06427758e0b8f8)
+para instalarlo o abrirlo en ChatGPT. Requiere tu conexión de GitHub.
+
+El plugin privado convierte el material disponible de una sesión en tarjetas para 02/03,
+con traducción completa, pistas y correcciones justificadas. Usa la conexión existente de
+GitHub y guarda archivos en `card-specs/sessions/`. Su código está en
+[`plugins/anki-english-coach`](plugins/anki-english-coach).
+
+Invócalo con «Crea y guarda en GitHub las tarjetas útiles de esta sesión». Para revisar primero:
+«Prepara un borrador, no lo subas». No vigila conversaciones en segundo plano ni accede a chats
+que no se hayan proporcionado. No importa directamente en tu Anki ni genera audio en ChatGPT.
+
+Comprueba el contrato actual, valida con el compilador real y revisa el historial guardado.
+Los ejemplos sintéticos nunca se consideran errores personales. La validación automática
+comprueba estructura e identidad; la corrección lingüística y la utilidad requieren revisión
+de la IA y del usuario. Si falta evidencia para el 03, pregunta o descarta el candidato.
+
+El paquete contiene una copia verificable del contrato. Para volver a empaquetarlo tras
+editarlo: `python scripts/package_plugin.py /ruta/anki-english-coach.zip`. El empaquetador
+rechaza copias del contrato desactualizadas. El ZIP es para instalar/actualizar el plugin privado;
+no configura un servidor ni contiene credenciales.

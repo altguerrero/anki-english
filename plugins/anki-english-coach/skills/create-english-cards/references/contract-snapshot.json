@@ -1,0 +1,11 @@
+{
+  "repository": "altguerrero/anki-english",
+  "commit": "0ca5aa631496df5d460923724af70676895a1df7",
+  "cli_version": "0.5.0",
+  "sha256": {
+    "src/anki_english/spec.py": "4601607262d790965e907e7a4d291310eb5c8eee4a2cd145ab0b4a752c682c44",
+    "src/anki_english/compiler.py": "dc74a243b233b22d6201fc56c54e7af362640982a9ef6bde7d0c43ecbb50706a",
+    "schemas/card-spec-v1.schema.json": "940b9a1f98558b1b977cde8b6419a3e30aa55d13310673944a1b02b034d3cd9d",
+    "docs/ai-authoring.md": "92a51a0b89fc3cdc76a8638b83185ad27271a2dabefbfec8330f85d26660b358"
+  }
+}

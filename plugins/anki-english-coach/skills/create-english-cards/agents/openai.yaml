@@ -1,0 +1,4 @@
+interface:
+  display_name: "Anki English Coach"
+  short_description: "Convierte sesiones en tarjetas útiles para Anki"
+  default_prompt: "Usa $create-english-cards para crear y guardar las tarjetas útiles de esta sesión en GitHub."

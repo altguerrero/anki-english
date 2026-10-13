@@ -1,0 +1,32 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "anki-english-coach",
+  "version": "0.1.0",
+  "description": "Convierte sesiones de inglés en CardSpecs validados para los mazos 02 y 03 y los guarda en GitHub.",
+  "author": {
+    "name": "Jose Guerrero"
+  },
+  "extensions": {
+    "com.openai": {
+      "apps": "./.app.json",
+      "interface": {
+        "displayName": "Anki English Coach",
+        "shortDescription": "De sesiones a tarjetas útiles",
+        "longDescription": "Selecciona expresiones y errores reales de sesiones de inglés, redacta tarjetas con traducción y feedback, valida CardSpec y comprueba duplicados antes de guardar un lote en altguerrero/anki-english. Usa tu conexión de GitHub. La importación y el audio se ejecutan después con tu CLI local.",
+        "developerName": "Jose Guerrero",
+        "category": "Education",
+        "capabilities": [
+          "Interactive"
+        ],
+        "defaultPrompt": [
+          "Crea y guarda en GitHub las tarjetas útiles de esta sesión.",
+          "Revisa estos CardSpecs antes de guardarlos.",
+          "Convierte mis errores reales en tarjetas para el mazo 03."
+        ],
+        "logo": "./assets/icon.svg",
+        "composerIcon": "./assets/icon.svg",
+        "brandColor": "#315f9d"
+      }
+    }
+  }
+}
