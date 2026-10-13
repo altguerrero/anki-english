@@ -65,6 +65,7 @@ class CardContent(StrictModel):
     answer_occurrence: Annotated[int, Field(ge=1)]
     target: Annotated[str, Field(min_length=1, max_length=100)]
     meaning_es: Annotated[str, Field(min_length=1, max_length=120)]
+    sentence_es: Annotated[str, Field(min_length=1, max_length=500)] | None = None
     pattern: Annotated[str, Field(min_length=1, max_length=140)] | None
     example: Annotated[str, Field(min_length=1, max_length=250)] | None
     source: Source

@@ -155,6 +155,18 @@ class CompilerTests(unittest.TestCase):
             self.assertNotIn("<", card.fields[field])
             self.assertIn("&lt;", card.fields[field])
 
+    def test_translation_is_optional_escaped_and_not_part_of_identity(self):
+        for model, factory in ((SentenceChunk, example), (MyError, error_example)):
+            data = factory()
+            data.pop("sentence_es")
+            old = compile_card(model.model_validate(data))
+            new = compile_card(model.model_validate({**data, "sentence_es": '<script>hola</script>'}))
+            self.assertEqual(old.uid, new.uid)
+            self.assertEqual(old.fields["SentenceES"], "")
+            self.assertEqual(new.fields["SentenceES"], "&lt;script&gt;hola&lt;/script&gt;")
+            self.assertEqual(list(new.fields)[-1], "SentenceES")
+            with self.assertRaises(ValidationError): model.model_validate({**data, "sentence_es": " "})
+
 
 if __name__ == "__main__":
     unittest.main()

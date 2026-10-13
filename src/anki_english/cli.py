@@ -21,7 +21,7 @@ def parser() -> argparse.ArgumentParser:
     commands = root.add_subparsers(dest="command", required=True)
     init = commands.add_parser("init", help="Create/verify deck and cloze note type")
     init.add_argument("--update-style", action="store_true",
-                      help="Back up and replace this note type's front/back/CSS, including existing cards")
+                      help="Back up/update front/back/CSS and append SentenceES to supported older note types")
     init.add_argument("--kind", choices=("all", *CARD_KINDS), default="all",
                       help="Initialize both decks (default) or only the selected kind")
     check = commands.add_parser("check", help="Offline validation, lint and preview")
@@ -33,6 +33,10 @@ def parser() -> argparse.ArgumentParser:
         sub.add_argument("--dry-run", action="store_true", help="Offline preview; no Anki/audio access")
         sub.add_argument("--no-audio", action="store_true", help="Explicitly publish without audio")
         sub.add_argument("--yes", action="store_true", help="Confirm publishing non-interactively")
+    translations = commands.add_parser("update-translations", help="Fill empty Spanish translations on existing notes")
+    translations.add_argument("file", type=Path)
+    translations.add_argument("--dry-run", action="store_true", help="Offline preview; no Anki access")
+    translations.add_argument("--yes", action="store_true", help="Confirm filling translations non-interactively")
     return root
 
 
@@ -69,6 +73,10 @@ def main(argv: list[str] | None = None) -> int:
         for index, spec in enumerate(batch.cards, 1):
             card = compile_card(spec)
             if card.uid in seen:
+                if args.command == "update-translations" and any(
+                    previous.uid == card.uid and previous.spec.sentence_es != spec.sentence_es for previous in cards
+                ):
+                    raise ValueError("Conflicting translations for the same UID in this batch")
                 print(f"SKIP {index:02}: duplicate inside this batch")
                 continue
             seen.add(card.uid)
@@ -81,6 +89,8 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"    Why: {spec.explanation_es}\n    Feedback: {spec.correction_source}")
                 if spec.observed_on:
                     print(f"    Observed: {spec.observed_on}")
+            if spec.sentence_es:
+                print(f"    Spanish translation: {spec.sentence_es}")
             if spec.pattern:
                 print(f"    Pattern: {spec.pattern}")
             if spec.example:
@@ -91,6 +101,8 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check" or args.dry_run:
             print("Offline check complete. Existing Anki duplicates were not checked.")
             return 0
+        if args.command == "update-translations":
+            return update_translations(cards, config, args.yes)
         gateway = AnkiRouter(config.anki, {card.spec.kind for card in cards}, api_key())
         gateway.verify()
         pending = []
@@ -127,3 +139,38 @@ def main(argv: list[str] | None = None) -> int:
     except (KeyboardInterrupt, EOFError):
         print("\nInterrupted. If publishing had begun, rerun the same batch to check UIDs.", file=sys.stderr)
         return 130
+
+
+def update_translations(cards, config, confirmed: bool) -> int:
+    eligible = [card for card in cards if card.spec.sentence_es]
+    if not eligible:
+        print("Nothing to update: provide sentence_es in the JSON.")
+        return 0
+    router = AnkiRouter(config.anki, {card.spec.kind for card in eligible}, api_key())
+    router.verify()
+    pending = []
+    # Preflight the complete batch before the first field write.
+    for card in eligible:
+        client = router.clients[card.spec.kind]
+        note_id = client.translation_target(card)
+        if note_id is None:
+            print(f"SKIP: {card.spec.target} — note missing or translation already present")
+        else:
+            pending.append((client, card, note_id))
+    if not pending:
+        print("Nothing to update.")
+        return 0
+    print(f"Fill {len(pending)} empty Spanish translations. Audio and review history are preserved.")
+    if not confirmed:
+        if not sys.stdin.isatty():
+            raise ValueError("Non-interactive session: use --yes to confirm translation updates")
+        if input("Update translations? [y/N] ").strip().casefold() not in {"y", "yes"}:
+            print("Cancelled. No translations were written.")
+            return 0
+    updated = 0
+    for client, card, note_id in pending:
+        if client.fill_translation(card, note_id):
+            updated += 1
+            print(f"UPDATED {note_id}: {card.spec.target}", flush=True)
+    print(f"Translations updated: {updated}. Existing nonempty translations were preserved.")
+    return 0

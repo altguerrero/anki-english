@@ -32,6 +32,20 @@
           "title": "Meaning Es",
           "type": "string"
         },
+        "sentence_es": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentence Es"
+        },
         "pattern": {
           "anyOf": [
             {
@@ -194,6 +208,20 @@
           "minLength": 1,
           "title": "Meaning Es",
           "type": "string"
+        },
+        "sentence_es": {
+          "anyOf": [
+            {
+              "maxLength": 500,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Sentence Es"
         },
         "pattern": {
           "anyOf": [

@@ -2,7 +2,7 @@
 
 Compilador local de tarjetas de inglés: **CardSpec JSON → validación → cloze → audio opcional → Anki**.
 
-Versión 0.4: admite **02 Sentences & Chunks** y **03 My Errors**, incluso en un mismo lote.
+Versión 0.5: traducción completa desplegable en el reverso de ambos mazos. Admite **02 Sentences & Chunks** y **03 My Errors**, incluso en un mismo lote.
 La IA puede elegir el tipo al preparar el JSON; el CLI valida y resuelve el destino.
 
 Incluye CLI, contrato Pydantic/JSON Schema, deduplicación por UID, AnkiConnect y Kokoro
@@ -17,7 +17,7 @@ El anverso muestra la frase con hueco, una pista de significado en español desp
 instrucción de completar y decir la frase en voz alta. La pista empieza cerrada: pulsa
 «Show meaning hint» para abrirla o vuelve a pulsar para cerrarla; también funciona
 con teclado. Reutiliza `MeaningES`: funciona en las
-notas existentes sin migrar campos ni reimportar contenido.
+notas existentes sin recrearlas; la versión 0.5 añade el campo opcional `SentenceES`.
 El reverso separa frase, audio, expresión, significado, cómo usarlo y otro contexto.
 Las etiquetas, instrucciones y la guía de calificación están en inglés sencillo; la pista,
 el significado y las explicaciones de uso conservan su contenido en español. Los botones
@@ -83,7 +83,8 @@ anki-en init --kind my_error
 anki-en init --kind sentence_chunk --update-style
 ```
 
-El 02 conserva sus campos y sus UID. El 03 usa UID independientes: intento original,
+El 02 conserva sus campos anteriores y sus UID; la versión 0.5 añade `SentenceES` al final.
+El 03 usa UID independientes: intento original,
 frase corregida, respuesta y ocurrencia identifican el objetivo. Cambiar la explicación o
 fecha no crea otra nota. Repetir el mismo error con otra fecha tampoco duplica la tarjeta;
 una reimportación omite la nota existente, sin actualizar su contenido. Cambiar el intento,
@@ -108,6 +109,9 @@ Para redactar un lote, usa `examples/cards.json` como contrato y sigue estos cri
 - Una expresión útil por tarjeta; el resto de la frase debe ser comprensible para tu nivel.
 - `meaning_es`: una glosa breve y contextual en español. Puede desplegarse **antes** de responder;
   no incluyas la expresión inglesa ni listas de traducciones ajenas a ese contexto.
+- `sentence_es`: traducción natural de **toda** la frase correcta, hasta 500 caracteres.
+  Aparece solo en el reverso bajo **Show Spanish translation**, cerrado por defecto.
+  No reemplaza `meaning_es`. Es opcional: omítelo o usa `null` si no tienes una traducción revisada.
 - Oculta la expresión completa que quieres practicar y evita repetirla en la parte visible.
 - `pattern`: una regla breve y aplicable; explica en español y conserva las formas inglesas.
   `example`: otra frase natural y sencilla que muestre un uso diferente. Usa `null` si no aportan.
@@ -135,15 +139,40 @@ anki-en init --update-style
 ```
 
 El flag autoriza reemplazar el anverso, reverso y CSS de los tipos seleccionados. Se aplica
-a todas sus tarjetas, conservando campos, audio, IDs, nombre de plantilla y repasos.
-Antes de cambiar nada, guarda una copia JSON del diseño previo en
-`~/.local/share/anki-english/backups/` y muestra su ruta. Si hay un fallo entre las dos
+a todas sus tarjetas, conservando los valores existentes, audio, IDs, nombre de plantilla y repasos.
+Si el modelo tiene exactamente los campos de la versión anterior, añade `SentenceES` **al final**,
+sin reordenar ni eliminar campos. Otros cambios de estructura requieren revisión manual.
+Antes de cambiar nada, guarda una copia JSON del diseño previo y la lista de campos en
+`~/.local/share/anki-english/backups/` y muestra su ruta. Si hay un fallo entre las
 operaciones de AnkiConnect, repite el comando para completar la actualización.
 La inicialización de ambos mazos es secuencial, no transaccional: si falla el segundo,
 el primero puede haber quedado listo. Cada diseño modificado tiene su propio respaldo.
 Ejecutar `init` sin el flag sigue sin sobrescribir un diseño diferente.
 Para volver manualmente al diseño previo, copia `Front`, `Back` y `css` del JSON de respaldo
 en los apartados correspondientes del editor de tarjetas de Anki.
+
+### Completar traducciones en notas existentes
+
+Después de `anki-en init --update-style`, las notas antiguas tendrán `SentenceES` vacío.
+El desplegable aparecerá al completar ese campo. Para los ejemplos ya importados:
+
+```bash
+anki-en update-translations examples/cards.json --yes
+anki-en update-translations examples/errors.json --yes
+```
+
+Esto **no importa** ejemplos que falten ni genera audio. Busca por UID, comprueba el modelo
+y la frase, rellena solamente `SentenceES` vacío y verifica la escritura. Conserva las
+traducciones ya escritas, todos los demás campos, audio e historial. Para tus propias notas,
+añade `sentence_es` a su JSON original y ejecuta `anki-en update-translations tu-lote.json`.
+También puedes editar `SentenceES` directamente en Anki. El CLI no traduce automáticamente.
+
+`--dry-run` valida el archivo sin conectarse a Anki; no comprueba el estado de las notas.
+Sin `--yes`, el comando pide confirmación tras comprobar las notas. Cierra el explorador/editor
+de notas de Anki durante la actualización y deja abierta la ventana principal. Si hay un fallo,
+se detiene; los cambios anteriores permanecen y puedes repetir el comando. Si editaste la frase
+manualmente, revisa esa nota: el comando rechaza un contenido distinto al JSON para evitar
+asignarle una traducción incorrecta. `add`/`paste` siguen omitiendo notas existentes.
 
 ## Instalación
 
@@ -192,7 +221,7 @@ MP3. Escribe primero en un temporal y mueve el archivo terminado a la caché. El
 se añade únicamente al reverso para no revelar la respuesta antes del intento.
 
 Si importas primero con `--no-audio`, volver a importar no añadirá sonido a esas notas:
-el mismo UID se omite. La actualización de notas existentes es trabajo futuro.
+el mismo UID se omite. Solo `update-translations` completa traducciones vacías; no hay actualización general de contenido.
 
 ## Comandos
 
@@ -201,6 +230,7 @@ el mismo UID se omite. La actualización de notas existentes es trabajo futuro.
 | `anki-en init` | Crea/verifica los mazos 02 y 03 y sus modelos Cloze. |
 | `anki-en init --kind my_error` | Crea/verifica solamente el mazo 03. |
 | `anki-en init --update-style` | Respalda y actualiza los diseños existentes; crea los que faltan. |
+| `anki-en update-translations cards.json` | Completa traducciones vacías de notas existentes tras confirmar. |
 | `anki-en check cards.json` | Valida, avisa y previsualiza sin red ni TTS. |
 | `anki-en add cards.json --dry-run` | Misma comprobación offline. |
 | `anki-en add cards.json` | Comprueba Anki/UID, pide confirmación, genera audio y publica. |
@@ -227,6 +257,7 @@ V1 solo permite un endpoint loopback (`127.0.0.1`, `localhost` o `::1`), sin pro
 - `examples/cards.json` es un lote del 02; `examples/errors.json`, del 03;
   `examples/mixed.json` combina ambos. Todos los campos comunes están presentes;
   `pattern`, `example`, `tts_text`, `source.label` y `source.url` permiten `null`.
+  `sentence_es` permite `null` y puede omitirse.
 - `answer` es el texto exacto oculto, `target` su forma canónica. `answer_occurrence` cuenta
   desde 1, distingue mayúsculas y busca coincidencias literales no solapadas en límites de palabra.
 - El compilador crea una sola omisión `c1`. Rechaza sintaxis Anki aportada por el autor,
@@ -235,7 +266,7 @@ V1 solo permite un endpoint loopback (`127.0.0.1`, `localhost` o `::1`), sin pro
 - UID del 02 = SHA-256 sobre versión de identidad, tipo, frase/respuesta normalizadas y ocurrencia.
   El 03 usa otra versión/prefijo y añade el intento original.
   Normalización: Unicode NFC, espacios y case-folding. Cambiar glosa o tags no crea otra nota.
-  Una nota existente se omite; no se actualiza ni se pierde su historial.
+  `add`/`paste` omiten notas existentes; `update-translations` solo completa `SentenceES` vacío.
 - `UID` es el primer campo para apoyar también la comprobación nativa de duplicados.
 - Los tags de tipo, origen e isla los calcula el programa. Los tags del autor admiten
   minúsculas ASCII, números, guiones, guiones bajos y una jerarquía `::`.

@@ -26,7 +26,8 @@
       "explanation_es": "En presente simple afirmativo, con he, she o it, go cambia a goes.",
       "error_type": "grammar",
       "correction_source": "Demonstration correction — not observed feedback",
-      "observed_on": null
+      "observed_on": null,
+      "sentence_es": "Ella va al trabajo todos los días."
     }
   ]
 }

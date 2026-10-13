@@ -42,7 +42,13 @@ una ambigüedad relevante, pregunta antes de emitir esa tarjeta.
   se ocultará; debe evaluar la corrección, no otra palabra incidental de la frase.
   `answer_occurrence` cuenta desde 1 y distingue mayúsculas.
 - `target` es la forma canónica de la expresión. `meaning_es` es una pista breve en
-  español, sin revelar las palabras inglesas; solo se verá al desplegarla.
+  español, sin revelar las palabras inglesas; en el anverso se verá solo al desplegarla.
+- Incluye `sentence_es`: traducción natural al español de **toda la frase `sentence`**,
+  con el mismo sentido, tiempo y persona; no una traducción palabra por palabra. En el 03
+  traduce la frase **corregida**, nunca `original`. Es independiente de la glosa `meaning_es`.
+  Se muestra únicamente en el reverso, dentro de **Show Spanish translation**, cerrado por defecto.
+  Límite: 500 caracteres. Si no puedes asegurar el sentido, usa `null` y pide el contexto necesario.
+  El campo es opcional para que los lotes antiguos sigan siendo válidos.
 - `pattern` es una regla breve opcional. `example` muestra otra situación con el
   mismo objetivo. Usa `null` si no aportan; evita repetir la explicación en varios campos.
 - `source` identifica de dónde salió el material original. `source.url` y

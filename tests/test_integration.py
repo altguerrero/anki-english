@@ -28,6 +28,7 @@ class State:
         self.calls = []
         self.fail_add = None
         self.fail_style = False
+        self.ignore_translation = False
         self.mode = "normal"
 
     @property
@@ -46,6 +47,22 @@ class State:
             self.models[model_name] = params
             return {"id": 1, "type": 1}
         if action == "modelFieldNames": return model["inOrderFields"]
+        if action == "modelFieldAdd":
+            field = params["fieldName"]
+            if field in model["inOrderFields"]: raise ValueError("duplicate field")
+            model["inOrderFields"].append(field)
+            for _, note in self.notes.values():
+                if note["modelName"] == model_name: note["fields"][field] = ""
+            return None
+        if action == "notesInfo":
+            return [{"noteId": nid, "modelName": note["modelName"],
+                     "fields": {k: {"value": v, "order": i} for i, (k, v) in enumerate(note["fields"].items())}}
+                    for nid, note in self.notes.values() if nid in params["notes"]]
+        if action == "updateNoteFields":
+            if not self.ignore_translation:
+                for nid, note in self.notes.values():
+                    if nid == params["note"]["id"]: note["fields"].update(params["note"]["fields"])
+            return None
         if action == "modelTemplates":
             return {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in model["cardTemplates"]}
         if action == "modelStyling": return {"css": model["css"]}
@@ -356,6 +373,121 @@ class IntegrationTests(unittest.TestCase):
         self.assertIn('{{ExplanationES}}', back)
         self.assertIn('<details class="sc-original">', back)
         self.assertNotIn('<details class="sc-original" open', back)
+
+    def make_legacy(self, kind):
+        client = AnkiConnect(self.config, kind=kind)
+        client.initialize()
+        card = compile_card(MyError.model_validate(error_example()) if kind == "my_error"
+                            else SentenceChunk.model_validate(example()))
+        client.add(card, None)
+        model = self.state.models[client.model]
+        model["inOrderFields"].remove("SentenceES")
+        self.state.notes[card.uid][1]["fields"].pop("SentenceES")
+        self.state.notes[card.uid][1]["fields"]["Audio"] = "[sound:existing.mp3]"
+        model["cardTemplates"][0]["Back"] = "<p>{{cloze:Text}}</p>"
+        return client, card
+
+    def test_legacy_migration_both_kinds_preserves_existing_fields_and_notes(self):
+        for kind in ("sentence_chunk", "my_error"):
+            with self.subTest(kind=kind):
+                client, card = self.make_legacy(kind)
+                nid, note = self.state.notes[card.uid]
+                old_fields = dict(note["fields"])
+                backup = client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+                saved = json.loads(backup.read_text())
+                self.assertEqual(saved["fields"], list(old_fields))
+                self.assertEqual(self.state.notes[card.uid][0], nid)
+                self.assertEqual(note["fields"], {**old_fields, "SentenceES": ""})
+                client.verify()
+                self.assertIsNone(client.initialize(update_style=True, backup_dir=Path(self.temp.name)))
+
+    def test_legacy_migration_backup_failure_and_partial_retry(self):
+        client, card = self.make_legacy("my_error")
+        self.state.calls.clear()
+        with patch("anki_english.anki.tempfile.NamedTemporaryFile", side_effect=OSError("disk full")):
+            with self.assertRaises(OSError): client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertNotIn("modelFieldAdd", [c["action"] for c in self.state.calls])
+        self.state.fail_style = True
+        with self.assertRaises(AnkiError): client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.state.fail_style = False
+        client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertEqual(sum(c["action"] == "modelFieldAdd" for c in self.state.calls), 1)
+        client.verify()
+
+    def test_fill_existing_translations_only_and_idempotent(self):
+        for kind in ("sentence_chunk", "my_error"):
+            client, _ = self.make_legacy(kind)
+            client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        before = json.loads(json.dumps(self.state.notes))
+        self.state.calls.clear()
+        code, output = self.cli("update-translations", str(ROOT / "examples/mixed.json"), "--yes")
+        self.assertEqual(code, 0, output)
+        self.assertIn("Translations updated: 2", output)
+        for uid, (nid, note) in self.state.notes.items():
+            self.assertEqual(nid, before[uid][0])
+            self.assertTrue(note["fields"]["SentenceES"])
+            expected = before[uid][1]
+            expected["fields"]["SentenceES"] = note["fields"]["SentenceES"]
+            self.assertEqual(note, expected)
+        writes = [c for c in self.state.calls if c["action"] == "updateNoteFields"]
+        self.assertEqual(len(writes), 2)
+        self.assertTrue(all(list(c["params"]["note"]["fields"]) == ["SentenceES"] for c in writes))
+        self.assertFalse(any(c["action"] in {"addNote", "storeMediaFile"} for c in self.state.calls))
+        self.state.calls.clear()
+        self.assertEqual(self.cli("update-translations", str(ROOT / "examples/mixed.json"), "--yes")[0], 0)
+        self.assertNotIn("updateNoteFields", [c["action"] for c in self.state.calls])
+
+    def test_translation_preflight_blocks_changed_sentence_or_model(self):
+        for kind in ("sentence_chunk", "my_error"):
+            client, card = self.make_legacy(kind)
+            client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        note = self.state.notes[card.uid][1]
+        for field in ("Sentence", "Text", "Original"):
+            with self.subTest(field=field):
+                original = note["fields"][field]
+                note["fields"][field] = "Edited in Anki"
+                self.state.calls.clear()
+                self.assertEqual(self.cli("update-translations", str(ROOT / "examples/mixed.json"), "--yes")[0], 1)
+                self.assertNotIn("updateNoteFields", [c["action"] for c in self.state.calls])
+                note["fields"][field] = original
+        note["modelName"] = "Another model"
+        with self.assertRaises(AnkiError): client.translation_target(card)
+
+    def test_translation_write_is_verified_and_retryable(self):
+        client, card = self.make_legacy("my_error")
+        client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.state.ignore_translation = True
+        code, output = self.cli("update-translations", str(ROOT / "examples/errors.json"), "--yes")
+        self.assertEqual(code, 1)
+        self.assertIn("translation was not saved", output)
+        self.state.ignore_translation = False
+        self.assertEqual(self.cli("update-translations", str(ROOT / "examples/errors.json"), "--yes")[0], 0)
+        self.assertEqual(len(self.state.notes), 1)
+
+    def test_translation_offline_cancel_missing_and_duplicate_notes(self):
+        path = str(ROOT / "examples/cards.json")
+        self.assertEqual(self.cli("update-translations", path, "--dry-run")[0], 0)
+        self.assertEqual(self.state.calls, [])
+        self.gateway.initialize()
+        self.assertEqual(self.cli("update-translations", path, "--yes")[0], 0)
+        card = compile_card(SentenceChunk.model_validate(example(sentence_es=None)))
+        self.gateway.add(card, None)
+        with patch("sys.stdin.isatty", return_value=True), patch("builtins.input", return_value="n"):
+            self.assertEqual(self.cli("update-translations", path)[0], 0)
+        self.assertNotIn("updateNoteFields", [c["action"] for c in self.state.calls])
+        translated = compile_card(SentenceChunk.model_validate(example()))
+        with patch.object(self.gateway, "call", return_value=[100, 101]):
+            with self.assertRaisesRegex(AnkiError, "multiple matching"): self.gateway.translation_target(translated)
+
+    def test_translation_disclosure_is_conditional_back_only_and_closed(self):
+        for kind in ("sentence_chunk", "my_error"):
+            resource = templates(kind)
+            self.assertNotIn("SentenceES", resource["front.html"])
+            self.assertIn('{{#SentenceES}}', resource["back.html"])
+            self.assertIn('{{/SentenceES}}', resource["back.html"])
+            self.assertIn('<details class="sc-cue sc-translation">', resource["back.html"])
+            self.assertIn('Show Spanish translation', resource["back.html"])
+            self.assertIn('lang="es">{{SentenceES}}', resource["back.html"])
 
 
 if __name__ == "__main__":

@@ -8,8 +8,11 @@ import unicodedata
 
 from .spec import CardKind, CardSpec, MyError, answer_spans
 
-FIELDS = ["UID", "Text", "Sentence", "Target", "MeaningES", "Pattern", "Example", "Audio", "Source", "SourceURL"]
-ERROR_FIELDS = FIELDS + ["Original", "ExplanationES", "ErrorType", "CorrectionSource", "ObservedOn"]
+LEGACY_FIELDS = ["UID", "Text", "Sentence", "Target", "MeaningES", "Pattern", "Example", "Audio", "Source", "SourceURL"]
+LEGACY_ERROR_FIELDS = LEGACY_FIELDS + ["Original", "ExplanationES", "ErrorType", "CorrectionSource", "ObservedOn"]
+
+FIELDS = LEGACY_FIELDS + ["SentenceES"]
+ERROR_FIELDS = LEGACY_ERROR_FIELDS + ["SentenceES"]
 
 
 def fields_for(kind: CardKind) -> list[str]:
@@ -70,7 +73,7 @@ def compile_card(card: CardSpec) -> CompiledCard:
     text = (escape(card.sentence[:start]) + "{{c1::" + escape(card.answer)
             + "}}" + escape(card.sentence[end:]))
     uid = uid_for(card)
-    fields = dict(zip(FIELDS, [
+    fields = dict(zip(LEGACY_FIELDS, [
         uid, text, escape(card.sentence), escape(card.target), escape(card.meaning_es),
         escape(card.pattern or ""), escape(card.example or ""), "",
         escape(card.source.label or card.source.type), escape(card.source.url or ""),
@@ -84,6 +87,7 @@ def compile_card(card: CardSpec) -> CompiledCard:
                        "ObservedOn": escape(card.observed_on or "")})
         type_tag = "type::my-error"
         extra_tags.add(f"error::{card.error_type.replace('_', '-')}")
+    fields["SentenceES"] = escape(card.sentence_es or "")
     tags = sorted({type_tag, *extra_tags, f"source::{card.source.type}",
                    *(f"island::{island}" for island in card.islands), *card.tags})
     return CompiledCard(card, uid, fields, tuple(tags), lint(card))
