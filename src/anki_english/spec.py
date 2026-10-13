@@ -1,5 +1,6 @@
 """Authoring contract. Exported JSON Schema is generated from these types."""
 
+from datetime import date
 import re
 import unicodedata
 from typing import Annotated, Literal, Self
@@ -11,7 +12,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 class StrictModel(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
 
-    @field_validator("*", mode="before")
+    @field_validator("*", mode="after")
     @classmethod
     def plain_text(cls, value):
         if isinstance(value, str):
@@ -54,8 +55,11 @@ def answer_spans(sentence: str, answer: str) -> list[tuple[int, int]]:
     return [match.span() for match in re.finditer(pattern, sentence)]
 
 
-class SentenceChunk(StrictModel):
-    kind: Literal["sentence_chunk"]
+CardKind = Literal["sentence_chunk", "my_error"]
+CARD_KINDS: tuple[CardKind, ...] = ("sentence_chunk", "my_error")
+
+
+class CardContent(StrictModel):
     sentence: Annotated[str, Field(min_length=1, max_length=300)]
     answer: Annotated[str, Field(min_length=1, max_length=100)]
     answer_occurrence: Annotated[int, Field(ge=1)]
@@ -83,14 +87,50 @@ class SentenceChunk(StrictModel):
         return self
 
 
+class SentenceChunk(CardContent):
+    kind: Literal["sentence_chunk"]
+
+
+class MyError(CardContent):
+    kind: Literal["my_error"]
+    original: Annotated[str, Field(min_length=1, max_length=300)]
+    explanation_es: Annotated[str, Field(min_length=1, max_length=300)]
+    error_type: Literal["grammar", "word_choice", "collocation"]
+    correction_source: Annotated[str, Field(min_length=1, max_length=200)]
+    observed_on: Annotated[str, Field(pattern=r"^\d{4}-\d{2}-\d{2}$")] | None = None
+
+    @field_validator("observed_on")
+    @classmethod
+    def valid_date(cls, value: str | None) -> str | None:
+        if value is not None:
+            date.fromisoformat(value)
+        return value
+
+    @model_validator(mode="after")
+    def error_checks(self) -> Self:
+        original = " ".join(unicodedata.normalize("NFC", self.original).casefold().split())
+        corrected = " ".join(unicodedata.normalize("NFC", self.sentence).casefold().split())
+        if original == corrected:
+            raise ValueError("my_error requires a correction different from the original attempt")
+        if self.tts_text is not None and self.tts_text != self.sentence:
+            raise ValueError("my_error audio must use the corrected sentence; use null for tts_text")
+        if any(tag.split("::")[0] == "error" for tag in self.tags):
+            raise ValueError("error:: tags belong to the compiler for my_error cards")
+        return self
+
+
+CardSpec = Annotated[SentenceChunk | MyError, Field(discriminator="kind")]
+
+
 class CardBatch(StrictModel):
     schema_version: Literal["1.0"]
-    cards: Annotated[list[SentenceChunk], Field(min_length=1, max_length=50)]
+    cards: Annotated[list[CardSpec], Field(min_length=1, max_length=50)]
 
 
 def schema() -> dict:
     result = CardBatch.model_json_schema()
     result["$schema"] = "https://json-schema.org/draft/2020-12/schema"
-    for field in ("tags", "islands"):
-        result["$defs"]["SentenceChunk"]["properties"][field]["uniqueItems"] = True
+    for name in ("SentenceChunk", "MyError"):
+        for field in ("tags", "islands"):
+            result["$defs"][name]["properties"][field]["uniqueItems"] = True
     return result

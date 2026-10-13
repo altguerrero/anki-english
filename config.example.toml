@@ -2,6 +2,8 @@
 endpoint = "http://127.0.0.1:8765"
 deck = "English::02 Sentences & Chunks"
 model = "English – Sentence & Chunk"
+errors_deck = "English::03 My Errors"
+errors_model = "English – My Error"
 timeout = 15.0
 
 [tts]

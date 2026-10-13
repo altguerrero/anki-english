@@ -7,12 +7,12 @@ import sys
 
 from pydantic import ValidationError
 
-from .anki import AnkiConnect, AnkiError
+from .anki import AnkiConnect, AnkiError, AnkiRouter
 from .audio import KokoroTTS
 from .compiler import compile_card
 from .config import load_config, api_key
 from .service import publish
-from .spec import CardBatch
+from .spec import CARD_KINDS, CardBatch, MyError
 
 
 def parser() -> argparse.ArgumentParser:
@@ -22,6 +22,8 @@ def parser() -> argparse.ArgumentParser:
     init = commands.add_parser("init", help="Create/verify deck and cloze note type")
     init.add_argument("--update-style", action="store_true",
                       help="Back up and replace this note type's front/back/CSS, including existing cards")
+    init.add_argument("--kind", choices=("all", *CARD_KINDS), default="all",
+                      help="Initialize both decks (default) or only the selected kind")
     check = commands.add_parser("check", help="Offline validation, lint and preview")
     check.add_argument("file", type=Path)
     for name in ("add", "paste"):
@@ -51,12 +53,15 @@ def main(argv: list[str] | None = None) -> int:
     try:
         config = load_config(args.config)
         if args.command == "init":
-            backup = AnkiConnect(config.anki, api_key()).initialize(update_style=args.update_style)
-            print(f"Ready: {config.anki.deck}\nNote type: {config.anki.model}")
-            if args.update_style:
-                print("Design applied to this note type. Note content and review history unchanged.")
-            if backup:
-                print(f"Previous design backup: {backup}")
+            kinds = CARD_KINDS if args.kind == "all" else (args.kind,)
+            for kind in kinds:
+                backup = AnkiConnect(config.anki, api_key(), kind=kind).initialize(update_style=args.update_style)
+                deck, model = config.anki.destination(kind)
+                print(f"Ready: {deck}\nNote type: {model}")
+                if args.update_style:
+                    print("Design applied to this note type. Note content and review history unchanged.")
+                if backup:
+                    print(f"Previous design backup: {backup}")
             return 0
         # Validate the whole batch before any network request or write.
         batch = CardBatch.model_validate_json(read_input(args))
@@ -69,6 +74,13 @@ def main(argv: list[str] | None = None) -> int:
             seen.add(card.uid)
             cards.append(card)
             print(f"\n{index:02}. {spec.target}\n    {unescape(card.fields['Text'])}\n    {spec.meaning_es}")
+            deck, model = config.anki.destination(spec.kind)
+            print(f"    Destination: {deck}\n    Note type: {model} ({spec.kind})")
+            if isinstance(spec, MyError):
+                print(f"    Original: {spec.original}\n    Correction: {spec.sentence}")
+                print(f"    Why: {spec.explanation_es}\n    Feedback: {spec.correction_source}")
+                if spec.observed_on:
+                    print(f"    Observed: {spec.observed_on}")
             if spec.pattern:
                 print(f"    Pattern: {spec.pattern}")
             if spec.example:
@@ -79,7 +91,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.command == "check" or args.dry_run:
             print("Offline check complete. Existing Anki duplicates were not checked.")
             return 0
-        gateway = AnkiConnect(config.anki, api_key())
+        gateway = AnkiRouter(config.anki, {card.spec.kind for card in cards}, api_key())
         gateway.verify()
         pending = []
         for card in cards:
@@ -91,7 +103,9 @@ def main(argv: list[str] | None = None) -> int:
             print("Nothing to publish.")
             return 0
         mode = "WITHOUT audio" if args.no_audio else "with Kokoro MP3 audio"
-        print(f"Publish {len(pending)} cards to {config.anki.deck}, {mode}.")
+        print(f"Publish {len(pending)} cards, {mode}:")
+        for kind, count in sorted(Counter(card.spec.kind for card in pending).items()):
+            print(f"    {count} -> {config.anki.destination(kind)[0]}")
         if not args.yes:
             if not sys.stdin.isatty():
                 raise ValueError("Non-interactive session: use --yes to explicitly confirm publishing")

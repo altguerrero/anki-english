@@ -1,0 +1,32 @@
+{
+  "schema_version": "1.0",
+  "cards": [
+    {
+      "kind": "my_error",
+      "sentence": "She goes to work every day.",
+      "answer": "goes",
+      "answer_occurrence": 1,
+      "target": "go",
+      "meaning_es": "Ella va al trabajo todos los días.",
+      "pattern": null,
+      "example": "He goes to the gym on Mondays.",
+      "source": {
+        "type": "manual",
+        "label": "Synthetic example — not a real user error",
+        "url": null
+      },
+      "islands": [
+        "daily-life"
+      ],
+      "tags": [
+        "grammar::third-person"
+      ],
+      "tts_text": null,
+      "original": "She go to work every day.",
+      "explanation_es": "En presente simple afirmativo, con he, she o it, go cambia a goes.",
+      "error_type": "grammar",
+      "correction_source": "Demonstration correction — not observed feedback",
+      "observed_on": null
+    }
+  ]
+}

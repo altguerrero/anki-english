@@ -1,13 +1,8 @@
 {
   "$defs": {
-    "SentenceChunk": {
+    "MyError": {
       "additionalProperties": false,
       "properties": {
-        "kind": {
-          "const": "sentence_chunk",
-          "title": "Kind",
-          "type": "string"
-        },
         "sentence": {
           "maxLength": 300,
           "minLength": 1,
@@ -100,10 +95,54 @@
             }
           ],
           "title": "Tts Text"
+        },
+        "kind": {
+          "const": "my_error",
+          "title": "Kind",
+          "type": "string"
+        },
+        "original": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Original",
+          "type": "string"
+        },
+        "explanation_es": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Explanation Es",
+          "type": "string"
+        },
+        "error_type": {
+          "enum": [
+            "grammar",
+            "word_choice",
+            "collocation"
+          ],
+          "title": "Error Type",
+          "type": "string"
+        },
+        "correction_source": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Correction Source",
+          "type": "string"
+        },
+        "observed_on": {
+          "anyOf": [
+            {
+              "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Observed On"
         }
       },
       "required": [
-        "kind",
         "sentence",
         "answer",
         "answer_occurrence",
@@ -114,7 +153,131 @@
         "source",
         "islands",
         "tags",
-        "tts_text"
+        "tts_text",
+        "kind",
+        "original",
+        "explanation_es",
+        "error_type",
+        "correction_source"
+      ],
+      "title": "MyError",
+      "type": "object"
+    },
+    "SentenceChunk": {
+      "additionalProperties": false,
+      "properties": {
+        "sentence": {
+          "maxLength": 300,
+          "minLength": 1,
+          "title": "Sentence",
+          "type": "string"
+        },
+        "answer": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Answer",
+          "type": "string"
+        },
+        "answer_occurrence": {
+          "minimum": 1,
+          "title": "Answer Occurrence",
+          "type": "integer"
+        },
+        "target": {
+          "maxLength": 100,
+          "minLength": 1,
+          "title": "Target",
+          "type": "string"
+        },
+        "meaning_es": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Meaning Es",
+          "type": "string"
+        },
+        "pattern": {
+          "anyOf": [
+            {
+              "maxLength": 140,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Pattern"
+        },
+        "example": {
+          "anyOf": [
+            {
+              "maxLength": 250,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Example"
+        },
+        "source": {
+          "$ref": "#/$defs/Source"
+        },
+        "islands": {
+          "items": {
+            "maxLength": 60,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$",
+            "type": "string"
+          },
+          "maxItems": 20,
+          "title": "Islands",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "tags": {
+          "items": {
+            "maxLength": 80,
+            "pattern": "^[a-z0-9]+(?:[-_][a-z0-9]+)*(?:::[a-z0-9]+(?:[-_][a-z0-9]+)*)?$",
+            "type": "string"
+          },
+          "maxItems": 30,
+          "title": "Tags",
+          "type": "array",
+          "uniqueItems": true
+        },
+        "tts_text": {
+          "anyOf": [
+            {
+              "maxLength": 300,
+              "minLength": 1,
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "title": "Tts Text"
+        },
+        "kind": {
+          "const": "sentence_chunk",
+          "title": "Kind",
+          "type": "string"
+        }
+      },
+      "required": [
+        "sentence",
+        "answer",
+        "answer_occurrence",
+        "target",
+        "meaning_es",
+        "pattern",
+        "example",
+        "source",
+        "islands",
+        "tags",
+        "tts_text",
+        "kind"
       ],
       "title": "SentenceChunk",
       "type": "object"
@@ -181,7 +344,21 @@
     },
     "cards": {
       "items": {
-        "$ref": "#/$defs/SentenceChunk"
+        "discriminator": {
+          "mapping": {
+            "my_error": "#/$defs/MyError",
+            "sentence_chunk": "#/$defs/SentenceChunk"
+          },
+          "propertyName": "kind"
+        },
+        "oneOf": [
+          {
+            "$ref": "#/$defs/SentenceChunk"
+          },
+          {
+            "$ref": "#/$defs/MyError"
+          }
+        ]
       },
       "maxItems": 50,
       "minItems": 1,

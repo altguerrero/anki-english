@@ -1,0 +1,67 @@
+<main class="sentence-card sentence-card--back sentence-card--error" lang="en">
+  <header class="sc-header">
+    <span class="sc-eyebrow" lang="en">My errors</span>
+    <span class="sc-badge">Check</span>
+  </header>
+  <section class="sc-answer" aria-label="Correct sentence">
+    <p class="sc-label">Correct sentence</p>
+    <div class="sc-sentence" lang="en">{{cloze:Text}}</div>
+    {{#Audio}}
+    <div class="sc-listen">
+      <div class="sc-audio" role="group" aria-label="Play the sentence">{{Audio}}</div>
+      <span class="sc-listen__text">Listen, compare with your answer, and repeat.</span>
+    </div>
+    {{/Audio}}
+  </section>
+  <hr class="sc-divider">
+  <section class="sc-expression" aria-label="Expression and meaning">
+    <p class="sc-label">The expression</p>
+    <h1 class="sc-target" lang="en">{{Target}}</h1>
+    <p class="sc-meaning" lang="es">{{MeaningES}}</p>
+  </section>
+  <section class="sc-panel sc-panel--why" aria-label="Why this works">
+    <p class="sc-label">Why?</p>
+    <p class="sc-pattern" lang="es">{{ExplanationES}}</p>
+  </section>
+  {{#Pattern}}
+  <section class="sc-panel sc-panel--pattern" aria-label="How to use it">
+    <p class="sc-label">How to use it</p>
+    <p class="sc-pattern" lang="es">{{Pattern}}</p>
+  </section>
+  {{/Pattern}}
+  {{#Example}}
+  <section class="sc-panel sc-panel--example" aria-label="Another example">
+    <p class="sc-label">Another example</p>
+    <p class="sc-example" lang="en">{{Example}}</p>
+  </section>
+  {{/Example}}
+  <details class="sc-original">
+    <summary>My original mistake</summary>
+    <p class="sc-label">Original attempt</p>
+    <p class="sc-original__text" lang="en">{{Original}}</p>
+    <p class="sc-label">Correct form</p>
+    <p class="sc-original__correction" lang="en">{{Sentence}}</p>
+    <div class="sc-feedback">
+      <p><span class="sc-feedback__label">Focus:</span> {{ErrorType}}</p>
+      <p><span class="sc-feedback__label">Feedback:</span> {{CorrectionSource}}</p>
+      {{#ObservedOn}}<p><span class="sc-feedback__label">Date:</span> {{ObservedOn}}</p>{{/ObservedOn}}
+    </div>
+  </details>
+  <details class="sc-review-guide">
+    <summary>How should I rate my answer?</summary>
+    <p>Did you remember the missing words before showing the answer?</p>
+    <dl>
+      <div><dt>Again</dt><dd>I forgot or gave the wrong answer.</dd></div>
+      <div><dt>Hard</dt><dd>I got it right, but it was hard to remember.</dd></div>
+      <div><dt>Good</dt><dd>I got it right with some effort.</dd></div>
+      <div><dt>Easy</dt><dd>I remembered it without effort.</dd></div>
+    </dl>
+    <p>If another expression also fits, check the hint. A different correct answer does not mean you forgot.</p>
+  </details>
+  {{#Source}}
+  <footer class="sc-source">
+    <span>Source · {{Source}}</span>
+    {{#SourceURL}}<a href="{{SourceURL}}" aria-label="Open original source">View source <span aria-hidden="true">↗</span></a>{{/SourceURL}}
+  </footer>
+  {{/Source}}
+</main>

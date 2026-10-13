@@ -2,6 +2,9 @@
 
 Compilador local de tarjetas de inglés: **CardSpec JSON → validación → cloze → audio opcional → Anki**.
 
+Versión 0.4: admite **02 Sentences & Chunks** y **03 My Errors**, incluso en un mismo lote.
+La IA puede elegir el tipo al preparar el JSON; el CLI valida y resuelve el destino.
+
 Incluye CLI, contrato Pydantic/JSON Schema, deduplicación por UID, AnkiConnect y Kokoro
 como extra opcional. El usuario confirmó la importación y reproducción de una tarjeta con
 audio en su Mac con Python 3.12.15 el 12 de octubre de 2026. Las pruebas automatizadas usan
@@ -23,6 +26,69 @@ queda disponible sin ocupar el repaso habitual.
 Los bloques opcionales se ocultan si el campo está vacío. Audio solo en el reverso.
 Incluye modo oscuro (`nightMode`/`night_mode`), tamaños móviles, controles de 44 px y foco
 visible. No usa JavaScript, fuentes remotas ni imágenes externas.
+
+## Mazo 03 My Errors y selección por la IA
+
+| `kind` en el JSON | Mazo predeterminado | Cuándo usarlo |
+| --- | --- | --- |
+| `sentence_chunk` | `English::02 Sentences & Chunks` | Una expresión útil que quieres aprender. |
+| `my_error` | `English::03 My Errors` | Un error real tuyo, recurrente o relevante, con una corrección fundamentada. |
+
+Puedes dejar que la IA decida según el contexto o pedirle un mazo explícitamente.
+No hace falta crear tarjetas de ambos tipos. Las [instrucciones para la IA](docs/ai-authoring.md)
+definen la selección y cómo redactar cada tarjeta; compártelas junto con el esquema y los
+ejemplos en una conversación. **No se añadió una API ni un clasificador de IA al CLI**:
+el campo `kind` contiene la decisión. La vista previa muestra el destino de cada tarjeta
+y, para el 03, el intento original, la corrección y la fuente del feedback.
+
+El 03 tiene su propio tipo de nota Cloze, `English – My Error`, y comparte Aura con el 02:
+
+- Anverso: frase correcta con un hueco, pista española cerrada e instrucción de responder en voz alta.
+- Reverso: frase corregida, audio de esa frase, expresión, explicación **Why?** y otro ejemplo.
+- **My original mistake**: desplegable cerrado con intento original, forma correcta,
+  categoría del error, fuente de la corrección y fecha si se conoce.
+- **How should I rate my answer?**: guía de calificación, también desplegable.
+- Instrucciones en inglés sencillo, explicación en español y los mismos estilos móviles y oscuros.
+
+El esquema del 03 añade `original`, `explanation_es`, `error_type`, `correction_source` y
+`observed_on` (opcional, `null` o fecha `AAAA-MM-DD`) a los campos comunes del 02.
+`sentence` siempre contiene la corrección; `answer` selecciona el fragmento que se practica.
+`error_type` admite `grammar`, `word_choice` y `collocation`. En este tipo, `tts_text`
+debe ser `null` o coincidir exactamente con la frase corregida. No se generan audios del error.
+
+La validación exige contenido para el intento y el feedback, rechaza una corrección idéntica
+al original y verifica estructura/markup. No demuestra que el error haya ocurrido ni que la
+corrección sea lingüísticamente válida: el autor debe revisarlo en contexto.
+
+### Activar ambos mazos
+
+Con Anki abierto y el entorno activado:
+
+```bash
+git pull --ff-only
+python -m pip install -e .
+anki-en init --update-style
+anki-en check examples/mixed.json
+```
+
+El último comando es una comprobación offline. Los ejemplos de errores son **sintéticos**,
+no errores tuyos; no se importan automáticamente. Después de preparar tus propias tarjetas,
+copia el JSON y ejecuta `anki-en paste`, o usa `anki-en add mis-tarjetas.json`.
+Se verifican todos los tipos de nota del lote antes de generar audio o publicar la primera nota.
+
+`init` crea/verifica ambos mazos por defecto. Para trabajar solo con uno:
+
+```bash
+anki-en init --kind my_error
+anki-en init --kind sentence_chunk --update-style
+```
+
+El 02 conserva sus campos y sus UID. El 03 usa UID independientes: intento original,
+frase corregida, respuesta y ocurrencia identifican el objetivo. Cambiar la explicación o
+fecha no crea otra nota. Repetir el mismo error con otra fecha tampoco duplica la tarjeta;
+una reimportación omite la nota existente, sin actualizar su contenido. Cambiar el intento,
+la corrección o el objetivo puede crear una nota nueva. La IA evita duplicar un objetivo
+entre mazos por defecto; el CLI respeta ambos tipos si el autor los incluye expresamente.
 
 ### Cómo estudiar y redactar las tarjetas
 
@@ -68,11 +134,13 @@ python -m pip install -e .
 anki-en init --update-style
 ```
 
-El flag autoriza reemplazar el anverso, reverso y CSS del tipo de nota configurado. Se aplica
+El flag autoriza reemplazar el anverso, reverso y CSS de los tipos seleccionados. Se aplica
 a todas sus tarjetas, conservando campos, audio, IDs, nombre de plantilla y repasos.
 Antes de cambiar nada, guarda una copia JSON del diseño previo en
 `~/.local/share/anki-english/backups/` y muestra su ruta. Si hay un fallo entre las dos
 operaciones de AnkiConnect, repite el comando para completar la actualización.
+La inicialización de ambos mazos es secuencial, no transaccional: si falla el segundo,
+el primero puede haber quedado listo. Cada diseño modificado tiene su propio respaldo.
 Ejecutar `init` sin el flag sigue sin sobrescribir un diseño diferente.
 Para volver manualmente al diseño previo, copia `Front`, `Back` y `css` del JSON de respaldo
 en los apartados correspondientes del editor de tarjetas de Anki.
@@ -130,8 +198,9 @@ el mismo UID se omite. La actualización de notas existentes es trabajo futuro.
 
 | Comando | Comportamiento |
 | --- | --- |
-| `anki-en init` | Crea/verifica mazo y modelo Cloze; no reemplaza un modelo incompatible. |
-| `anki-en init --update-style` | Respalda y actualiza anverso/reverso/CSS de las tarjetas existentes. |
+| `anki-en init` | Crea/verifica los mazos 02 y 03 y sus modelos Cloze. |
+| `anki-en init --kind my_error` | Crea/verifica solamente el mazo 03. |
+| `anki-en init --update-style` | Respalda y actualiza los diseños existentes; crea los que faltan. |
 | `anki-en check cards.json` | Valida, avisa y previsualiza sin red ni TTS. |
 | `anki-en add cards.json --dry-run` | Misma comprobación offline. |
 | `anki-en add cards.json` | Comprueba Anki/UID, pide confirmación, genera audio y publica. |
@@ -148,20 +217,23 @@ cp config.example.toml config.toml
 anki-en --config config.toml init
 ```
 
-Los valores por defecto crean `English::02 Sentences & Chunks` y `English – Sentence & Chunk`.
+`anki.deck` / `anki.model` configuran el 02; `anki.errors_deck` / `anki.errors_model` configuran
+el 03. Deben ser distintos. Los archivos de configuración anteriores siguen siendo válidos.
 Si AnkiConnect usa API key, define `ANKI_CONNECT_API_KEY` en tu entorno; no la añadas al repo.
 V1 solo permite un endpoint loopback (`127.0.0.1`, `localhost` o `::1`), sin proxy HTTP.
 
 ## Contrato y decisiones
 
-- `examples/cards.json` es un lote válido completo. Todos los campos están presentes;
+- `examples/cards.json` es un lote del 02; `examples/errors.json`, del 03;
+  `examples/mixed.json` combina ambos. Todos los campos comunes están presentes;
   `pattern`, `example`, `tts_text`, `source.label` y `source.url` permiten `null`.
 - `answer` es el texto exacto oculto, `target` su forma canónica. `answer_occurrence` cuenta
   desde 1, distingue mayúsculas y busca coincidencias literales no solapadas en límites de palabra.
 - El compilador crea una sola omisión `c1`. Rechaza sintaxis Anki aportada por el autor,
   propiedades desconocidas, texto vacío, controles, ocurrencias inexistentes y tags reservados.
 - HTML se muestra como texto escapado. URLs de fuente solo HTTP(S), sin credenciales.
-- UID = SHA-256 sobre versión de identidad, tipo, frase/respuesta normalizadas y ocurrencia.
+- UID del 02 = SHA-256 sobre versión de identidad, tipo, frase/respuesta normalizadas y ocurrencia.
+  El 03 usa otra versión/prefijo y añade el intento original.
   Normalización: Unicode NFC, espacios y case-folding. Cambiar glosa o tags no crea otra nota.
   Una nota existente se omite; no se actualiza ni se pierde su historial.
 - `UID` es el primer campo para apoyar también la comprobación nativa de duplicados.
@@ -200,6 +272,8 @@ Las pruebas cubren contrato, cloze, XSS/markup, UID/ocurrencias, inicialización
 rechazo de modelos incompatibles, HTTP/API key, CLI offline, confirmación, duplicados,
 publicación parcial y reintentos, y actualización de diseño con respaldo, recuperación tras
 fallo y rechazo de modelos incompatibles. No sustituyen una prueba real de Anki Desktop/AnkiMobile.
+También cubren lotes mixtos, validación de errores, destinos personalizados, conservación de
+UID del 02, audio de la corrección y reintentos parciales entre mazos.
 
 Estructura:
 
@@ -211,7 +285,7 @@ Estructura:
 - `cli.py`: entrada JSON/portapapeles, preview y confirmación.
 - `templates/`: front/back/CSS empaquetados con la instalación.
 
-Próximo hito: validar el nuevo diseño Aura y el audio en AnkiMobile/AnkiDroid.
+Próximo hito: validar el diseño del 03 y el audio en Anki Desktop/AnkiMobile/AnkiDroid.
 Después: avisos de similitud y actualización explícita del contenido de notas.
 MCP, API de IA, GUI y otros motores de voz quedan fuera de esta primera entrega.
 

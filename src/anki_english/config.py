@@ -6,12 +6,16 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from .spec import CardKind
+
 
 class AnkiConfig(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     endpoint: str = "http://127.0.0.1:8765"
     deck: str = "English::02 Sentences & Chunks"
     model: str = "English – Sentence & Chunk"
+    errors_deck: str = "English::03 My Errors"
+    errors_model: str = "English – My Error"
     timeout: Annotated[float, Field(gt=0, le=120)] = 15.0
 
     @field_validator("endpoint")
@@ -25,12 +29,25 @@ class AnkiConfig(BaseModel):
         _ = parsed.port  # Reject invalid ports while parsing configuration.
         return value
 
-    @field_validator("deck", "model")
+    @field_validator("deck", "model", "errors_deck", "errors_model")
     @classmethod
     def valid_name(cls, value: str) -> str:
         if not value.strip() or any(ord(c) < 32 for c in value):
             raise ValueError("deck/model name cannot be blank or contain control characters")
         return value
+
+    @model_validator(mode="after")
+    def separate_destinations(self):
+        if self.deck.strip().casefold() == self.errors_deck.strip().casefold():
+            raise ValueError("02 and 03 must use different decks")
+        if self.model.strip().casefold() == self.errors_model.strip().casefold():
+            raise ValueError("02 and 03 must use different note types")
+        return self
+
+    def destination(self, kind: CardKind) -> tuple[str, str]:
+        if kind == "my_error":
+            return self.errors_deck, self.errors_model
+        return self.deck, self.model
 
 
 class TTSConfig(BaseModel):

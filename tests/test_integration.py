@@ -10,19 +10,19 @@ from threading import Thread
 import unittest
 from unittest.mock import patch
 
-from anki_english.anki import AnkiConnect, AnkiError
+from anki_english.anki import AnkiConnect, AnkiError, AnkiRouter, templates
 from anki_english.audio import AudioError
 from anki_english.cli import main
-from anki_english.compiler import compile_card, FIELDS
+from anki_english.compiler import compile_card, FIELDS, ERROR_FIELDS
 from anki_english.config import AnkiConfig
 from anki_english.service import publish
-from anki_english.spec import SentenceChunk
-from test_compiler import example, ROOT
+from anki_english.spec import SentenceChunk, CardBatch, MyError
+from test_compiler import example, error_example, ROOT
 
 
 class State:
     def __init__(self):
-        self.model = None
+        self.models = {}
         self.decks = []
         self.notes = {}
         self.calls = []
@@ -30,24 +30,32 @@ class State:
         self.fail_style = False
         self.mode = "normal"
 
+    @property
+    def model(self):
+        # Existing 02 tests continue to inspect the original model.
+        return self.models.get(AnkiConfig().model)
+
     def invoke(self, action, params):
+        model_name = params.get("modelName") or params.get("model", {}).get("name")
+        model = self.models.get(model_name)
         if action == "version": return 6
-        if action == "modelNames": return [self.model["modelName"]] if self.model else []
+        if action == "modelNames": return list(self.models)
         if action == "deckNames": return self.decks
         if action == "createModel":
-            self.model = params
+            if model_name in self.models: raise ValueError("model already exists")
+            self.models[model_name] = params
             return {"id": 1, "type": 1}
-        if action == "modelFieldNames": return self.model["inOrderFields"]
+        if action == "modelFieldNames": return model["inOrderFields"]
         if action == "modelTemplates":
-            return {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in self.model["cardTemplates"]}
-        if action == "modelStyling": return {"css": self.model["css"]}
+            return {t["Name"]: {"Front": t["Front"], "Back": t["Back"]} for t in model["cardTemplates"]}
+        if action == "modelStyling": return {"css": model["css"]}
         if action == "updateModelTemplates":
-            for template in self.model["cardTemplates"]:
+            for template in model["cardTemplates"]:
                 template.update(params["model"]["templates"].get(template["Name"], {}))
             return None
         if action == "updateModelStyling":
             if self.fail_style: raise ValueError("simulated styling failure")
-            self.model["css"] = params["model"]["css"]
+            model["css"] = params["model"]["css"]
             return None
         if action == "createDeck":
             if params["deck"] not in self.decks: self.decks.append(params["deck"])
@@ -57,6 +65,10 @@ class State:
             return [self.notes[uid][0]] if uid in self.notes else []
         if action == "storeMediaFile": return params["filename"]
         if action == "addNote":
+            note = params["note"]
+            if note["deckName"] not in self.decks: raise ValueError("deck missing")
+            if list(note["fields"]) != self.models[note["modelName"]]["inOrderFields"]:
+                raise ValueError("note fields do not match model")
             uid = params["note"]["fields"]["UID"]
             if uid == self.fail_add: raise ValueError("simulated write failure")
             if uid in self.notes: raise ValueError("duplicate")
@@ -250,8 +262,100 @@ class IntegrationTests(unittest.TestCase):
     def test_init_cli_passes_explicit_update_style_flag(self):
         with patch("anki_english.cli.AnkiConnect") as client:
             client.return_value.initialize.return_value = None
-            self.assertEqual(self.cli("init", "--update-style")[0], 0)
+            self.assertEqual(self.cli("init", "--kind", "sentence_chunk", "--update-style")[0], 0)
             client.return_value.initialize.assert_called_once_with(update_style=True)
+
+    def test_init_creates_both_models_idempotently_and_mixed_import_routes(self):
+        self.assertEqual(self.cli("init")[0], 0)
+        self.assertEqual(self.cli("init")[0], 0)
+        self.assertEqual(len(self.state.models), 2)
+        self.assertEqual(set(self.state.decks), {self.config.deck, self.config.errors_deck})
+        self.assertEqual(self.state.models[self.config.errors_model]["inOrderFields"], ERROR_FIELDS)
+        code, output = self.cli("add", str(ROOT / "examples/mixed.json"), "--no-audio", "--yes")
+        self.assertEqual(code, 0, output)
+        self.assertIn(f"1 -> {self.config.errors_deck}", output)
+        self.assertIn("Original: She go", output)
+        notes = [note for _, note in self.state.notes.values()]
+        self.assertEqual([n["deckName"] for n in notes], [self.config.deck, self.config.errors_deck])
+        self.assertEqual([n["modelName"] for n in notes], [self.config.model, self.config.errors_model])
+        self.assertEqual(self.cli("add", str(ROOT / "examples/mixed.json"), "--no-audio", "--yes")[0], 0)
+        self.assertEqual(len(self.state.notes), 2)
+
+    def test_incompatible_03_blocks_entire_mixed_import_before_writes(self):
+        self.cli("init")
+        self.state.models[self.config.errors_model]["inOrderFields"] = ["Front", "Back"]
+        self.state.calls.clear()
+        code, output = self.cli("add", str(ROOT / "examples/mixed.json"), "--no-audio", "--yes")
+        self.assertEqual(code, 1, output)
+        self.assertFalse(any(c["action"] in {"addNote", "storeMediaFile"} for c in self.state.calls))
+
+    def test_invalid_error_in_mixed_batch_makes_no_network_requests(self):
+        data = error_example()
+        del data["original"]
+        path = Path(self.temp.name) / "invalid-mixed.json"
+        path.write_text(json.dumps({"schema_version": "1.0", "cards": [example(), data]}))
+        self.assertEqual(self.cli("add", str(path), "--yes")[0], 1)
+        self.assertEqual(self.state.calls, [])
+
+    def test_mixed_partial_failure_retry_and_corrected_audio(self):
+        self.cli("init")
+        batch = CardBatch.model_validate_json((ROOT / "examples/mixed.json").read_text())
+        cards = [compile_card(spec) for spec in batch.cards]
+        router = AnkiRouter(self.config, {"sentence_chunk", "my_error"})
+        audio = Path(self.temp.name) / "eng_test.mp3"
+        audio.write_bytes(b"test audio")
+        spoken = []
+        class RecordingTTS:
+            def synthesize(self, text):
+                spoken.append(text)
+                return audio
+        self.state.fail_add = cards[1].uid
+        self.assertEqual([r.status for r in publish(cards, router, RecordingTTS())], ["added", "failed"])
+        self.state.fail_add = None
+        self.assertEqual([r.status for r in publish(cards, router, RecordingTTS())], ["skipped", "added"])
+        self.assertEqual(spoken, [batch.cards[0].sentence, batch.cards[1].sentence, batch.cards[1].sentence])
+        self.assertNotIn(batch.cards[1].original, spoken)
+        self.assertEqual(len(self.state.notes), 2)
+
+    def test_error_style_update_preserves_02_and_error_notes(self):
+        self.cli("init")
+        client = AnkiConnect(self.config, kind="my_error")
+        client.add(compile_card(MyError.model_validate(error_example())), None)
+        before_notes = json.dumps(self.state.notes, sort_keys=True)
+        before_02 = json.dumps(self.state.model, sort_keys=True)
+        self.state.models[self.config.errors_model]["css"] = "old error css"
+        backup = client.initialize(update_style=True, backup_dir=Path(self.temp.name))
+        self.assertEqual(json.loads(backup.read_text())["model"], self.config.errors_model)
+        self.assertEqual(json.dumps(self.state.notes, sort_keys=True), before_notes)
+        self.assertEqual(json.dumps(self.state.model, sort_keys=True), before_02)
+        self.assertIsNone(client.initialize(update_style=True, backup_dir=Path(self.temp.name)))
+
+    def test_error_cannot_be_written_through_02_client(self):
+        self.gateway.initialize()
+        self.state.calls.clear()
+        with self.assertRaises(AnkiError):
+            self.gateway.add(compile_card(MyError.model_validate(error_example())), None)
+        self.assertEqual(self.state.calls, [])
+
+    def test_error_only_init_and_custom_destinations(self):
+        self.config_path.write_text(f'[anki]\nendpoint = "{self.config.endpoint}"\n'
+                                    'errors_deck = "Study::My Errors"\nerrors_model = "My Corrections"\n')
+        self.assertEqual(self.cli("init", "--kind", "my_error")[0], 0)
+        self.assertEqual(list(self.state.models), ["My Corrections"])
+        self.assertEqual(self.cli("add", str(ROOT / "examples/errors.json"), "--no-audio", "--yes")[0], 0)
+        note = next(iter(self.state.notes.values()))[1]
+        self.assertEqual(note["deckName"], "Study::My Errors")
+        self.assertEqual(note["modelName"], "My Corrections")
+
+    def test_error_template_keeps_feedback_and_original_off_front(self):
+        import re
+        front = templates("my_error")["front.html"]
+        referenced = set(re.findall(r"\{\{([^#/].*?)\}\}", front))
+        self.assertEqual(referenced, {"cloze:Text", "MeaningES"})
+        back = templates("my_error")["back.html"]
+        self.assertIn('{{ExplanationES}}', back)
+        self.assertIn('<details class="sc-original">', back)
+        self.assertNotIn('<details class="sc-original" open', back)
 
 
 if __name__ == "__main__":

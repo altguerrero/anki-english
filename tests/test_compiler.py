@@ -5,14 +5,20 @@ import unittest
 
 from pydantic import ValidationError
 
-from anki_english.compiler import compile_card, uid_for
-from anki_english.spec import CardBatch, SentenceChunk, schema
+from anki_english.compiler import compile_card, uid_for, ERROR_FIELDS
+from anki_english.spec import CardBatch, SentenceChunk, MyError, schema
 
 ROOT = Path(__file__).resolve().parents[1]
 
 
 def example(**changes):
     value = copy.deepcopy(json.loads((ROOT / "examples/cards.json").read_text())["cards"][0])
+    value.update(changes)
+    return value
+
+
+def error_example(**changes):
+    value = copy.deepcopy(json.loads((ROOT / "examples/errors.json").read_text())["cards"][0])
     value.update(changes)
     return value
 
@@ -95,6 +101,59 @@ class CompilerTests(unittest.TestCase):
 
     def test_exported_schema_matches_runtime_contract(self):
         self.assertEqual(schema(), json.loads((ROOT / "schemas/card-spec-v1.schema.json").read_text()))
+
+    def test_existing_02_uids_are_unchanged(self):
+        # Captured from the published v0.3.2 compiler, before adding MyError.
+        expected = ["sc_ca7ce43c3af0aafc61b72dbd623d98eb0776085c3b418ede326d14a5553a436b",
+                    "sc_dc359bebc025ef6e10e8c1b1566186a1ef00abda4e692a0a3636e46aaf3e67f1"]
+        batch = CardBatch.model_validate_json((ROOT / "examples/cards.json").read_text())
+        self.assertEqual([uid_for(card) for card in batch.cards], expected)
+
+    def test_mixed_batch_selects_types_and_compiles_corrected_error(self):
+        batch = CardBatch.model_validate_json((ROOT / "examples/mixed.json").read_text())
+        self.assertIsInstance(batch.cards[0], SentenceChunk)
+        self.assertIsInstance(batch.cards[1], MyError)
+        card = compile_card(batch.cards[1])
+        self.assertEqual(list(card.fields), ERROR_FIELDS)
+        self.assertEqual(card.fields["Text"], "She {{c1::goes}} to work every day.")
+        self.assertEqual(card.fields["Original"], "She go to work every day.")
+        self.assertEqual(card.fields["ObservedOn"], "")
+        self.assertIn("type::my-error", card.tags)
+        self.assertIn("error::grammar", card.tags)
+
+    def test_errors_need_original_correction_and_feedback(self):
+        for missing in ("original", "explanation_es", "correction_source", "error_type"):
+            data = error_example()
+            del data[missing]
+            with self.subTest(missing=missing), self.assertRaises(ValidationError):
+                MyError.model_validate(data)
+        for changes in (
+            {"original": error_example()["sentence"]}, {"original": " "},
+            {"correction_source": ""}, {"error_type": "pronunciation"},
+            {"observed_on": "2026-02-30"}, {"observed_on": "20261012"},
+            {"tts_text": error_example()["original"]}, {"tags": ["error::fake"]},
+            {"original": "{{c1::injected}}"}, {"explanation_es": "[sound:bad.mp3]"},
+        ):
+            with self.subTest(changes=changes), self.assertRaises(ValidationError):
+                MyError.model_validate(error_example(**changes))
+
+    def test_error_identity_ignores_feedback_date_but_tracks_attempt(self):
+        one = MyError.model_validate(error_example())
+        metadata = MyError.model_validate(error_example(observed_on="2026-10-12", explanation_es="Otra explicación."))
+        different = MyError.model_validate(error_example(original="She going to work every day."))
+        self.assertEqual(uid_for(one), uid_for(metadata))
+        self.assertNotEqual(uid_for(one), uid_for(different))
+        as_chunk = {key: value for key, value in error_example().items() if key in SentenceChunk.model_fields}
+        as_chunk["kind"] = "sentence_chunk"
+        self.assertNotEqual(uid_for(one), uid_for(SentenceChunk.model_validate(as_chunk)))
+
+    def test_error_feedback_and_original_are_escaped(self):
+        card = compile_card(MyError.model_validate(error_example(
+            original='<img src=x onerror="bad()">', explanation_es='<script>bad()</script>',
+            correction_source='<b>Teacher</b>')))
+        for field in ("Original", "ExplanationES", "CorrectionSource"):
+            self.assertNotIn("<", card.fields[field])
+            self.assertIn("&lt;", card.fields[field])
 
 
 if __name__ == "__main__":
